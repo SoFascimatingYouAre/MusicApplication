@@ -1,5 +1,6 @@
 package com.mytest.musicapplication;
 
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.media.MediaPlayer;
@@ -9,7 +10,6 @@ import android.util.Log;
 
 import androidx.databinding.ObservableBoolean;
 import androidx.databinding.ObservableField;
-import androidx.databinding.ObservableInt;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -22,12 +22,12 @@ import java.util.Date;
 public class MainViewModel {
     private static final String TAG = "[MusicApplication] " + MainViewModel.class.getSimpleName();
 
-    private ArrayList<MusicItemBean> data;
+    private final ArrayList<MusicItemBean> data;
 
     /**
      * 播放器
      */
-    private MediaPlayer mediaPlayer;
+    private final MediaPlayer mediaPlayer;
 
     /**
      * 当前正在播放的音乐在list中的下标
@@ -72,12 +72,14 @@ public class MainViewModel {
      * 播放/暂停标志位，根据播放和暂停的状态变化自动变换播放和暂停位置的图片(此项目使用的是字符)
      * true:当前是播放状态，false:当前是暂停状态
      * 播放状态显示暂停按钮，暂停状态显示播放按钮
+     * TODO: 当前是直接修改状态并变更UI，应该修改为先修改状态，再根据状态变更的回调再更新UI
      */
     public ObservableBoolean playOrPauseFlag = new ObservableBoolean(false);
 
     /**
      * 加载本地存储当中的音乐文件到集合当中
      */
+    @SuppressLint("Range")
     public void initMusicData(ContentResolver resolver) {
         Log.d(TAG, "initMusicData");
         //1、获取ContentResolver对象  在View层获取，传递到此方法参数中
@@ -200,33 +202,13 @@ public class MainViewModel {
     public void playNewSong(int position) {
         currentPlayPosition = position;
         MusicItemBean bean = data.get(position);
-
-//        //打印歌曲信息,最后一个视频中重新封装了播放指定下标的音乐方法，通过将playMusicInPosition()或下方代码分别注释/解注释交替使用
-//        Log.d(TAG, bean.toString());
-//
-//        singer.set(bean.getSinger());
-//        name.set(bean.getName());
-//        stopMusic();
-//
-//        //重置多媒体播放器
-//        mediaPlayer.reset();
-//
-//        //设置新的路径
-//        try {
-//            mediaPlayer.setDataSource(bean.getPath());
-//            //设置路径成功后播放新音乐
-//            playMusic();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
         playMusicInPosition(bean);
     }
 
     /**
      * 根据传入对象播放音乐
      * 最后一个视频中重新封装了播放指定下标的音乐方法
-     * @param bean
+     * @param bean 音乐信息实体类
      */
     private void playMusicInPosition(MusicItemBean bean) {
         //打印歌曲信息
@@ -245,7 +227,7 @@ public class MainViewModel {
             //设置路径成功后播放新音乐
             playMusic();
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.d(TAG, e.toString());
         }
     }
 
@@ -269,7 +251,7 @@ public class MainViewModel {
                         mediaPlayer.start();
 
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        Log.d(TAG, e.toString());
                     }
                 } else {
                     //从暂停到播放

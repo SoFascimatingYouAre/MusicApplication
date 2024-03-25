@@ -1,12 +1,8 @@
 package com.mytest.musicapplication;
 
-import android.annotation.SuppressLint;
-import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.databinding.DataBindingUtil;
@@ -20,7 +16,6 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
 
     private static final String TAG = "[MusicApplication] " + MusicItemAdapter.class.getSimpleName();
 
-    private Context context;
     private List<MusicItemBean> data;
     MusicItemLayoutBinding binding;
     private MusicItemListener listener;
@@ -29,13 +24,10 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
         this.listener = listener;
     }
 
-    public MusicItemAdapter(Context context) {
-        this.context = context;
-    }
-    
     public void updateData(List<MusicItemBean> data) {
         Log.d(TAG, "updateData");
         this.data = data;
+        //TODO: 有时间调查一下替换成什么其他更新方式更好
         notifyDataSetChanged();
     }
 
@@ -43,10 +35,6 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
     @Override
     public MusicItemAdapterViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         Log.d(TAG, "MusicItemAdapterViewHolder");
-//        LayoutInflater inflater = LayoutInflater.from(context);
-//        binding = MusicItemLayoutBinding.inflate(inflater, parent, false);
-//        return new MusicItemAdapterViewHolder(binding.getRoot());
-
         binding = DataBindingUtil.inflate(LayoutInflater.from(parent.getContext()),
                 R.layout.music_item_layout, parent, false);
         return new MusicItemAdapterViewHolder(binding);
@@ -89,30 +77,18 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
     }
 
     class MusicItemAdapterViewHolder extends RecyclerView.ViewHolder {
-        private MusicItemLayoutBinding binding;
+        private final MusicItemLayoutBinding binding;
+
         public MusicItemAdapterViewHolder(@NonNull MusicItemLayoutBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
         }
     }
 
-    /**
-     * 此部分是首次使用，bind一行报错，无法使用
-     * 似乎是因为bind方法是获取xml中<data>修饰的内容，而不返回MusicItemLayoutBinding导致
-     */
-//    class MusicItemAdapterViewHolder extends RecyclerView.ViewHolder {
-//
-//        MusicItemLayoutBinding binding;
-//
-//        public MusicItemAdapterViewHolder(View itemView) {
-//            super(itemView);
-//            binding = MusicItemLayoutBinding.bind(itemView);
-//        }
-//    }
-
     public interface MusicItemListener {
         /**
          * 点击适配器中的某个item
+         *
          * @param position 下标
          */
         void onItemCLick(int position);

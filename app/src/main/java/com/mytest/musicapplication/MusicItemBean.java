@@ -1,5 +1,7 @@
 package com.mytest.musicapplication;
 
+import androidx.annotation.NonNull;
+
 public class MusicItemBean {
     private static final String TAG = "[MusicApplication] " + MusicItemBean.class.getSimpleName();
 
@@ -67,6 +69,7 @@ public class MusicItemBean {
         this.path = path;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "MusicItemBean{" +

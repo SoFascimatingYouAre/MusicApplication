@@ -1,5 +1,11 @@
 package com.mytest.musicapplication;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -7,23 +13,9 @@ import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import android.Manifest;
-import android.content.ContentResolver;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.media.MediaPlayer;
-import android.net.Uri;
-import android.os.Bundle;
-import android.provider.MediaStore;
-import android.util.Log;
-import android.widget.Toast;
-
 import com.mytest.musicapplication.databinding.ActivityMainBinding;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
 /**
  * @author 翻箱子
@@ -31,7 +23,10 @@ import java.util.List;
  * 项目较为精短，暂无Model层，大致思路为ViewModel<—相互传递信息—>View<—相互传递信息—>Adapter，而ViewModel层和Adapter不直接交互，一定要经过View层达到交互目的
  * ViewModel层处理所有逻辑，View层只负责修改UI相关的代码，若需要adapter更新则由View进行通知
  * 该项目xml中View的id和视频中有所区别，但足够见名知义
- * 项目视频链接：https://www.bilibili.com/video/BV1oJ41197fi?p=1&vd_source=764e8a00ab53b6d7aeeb3332b569fdb1
+ * 项目视频链接：
+ *      <a href="https://www.bilibili.com/video/BV1oJ41197fi?p=1&vd_source=764e8a00ab53b6d7aeeb3332b569fdb1">
+ *          Android实战练习--超简单本地音乐播放器
+ *      </a>
  */
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "[MusicApplication] " + MainActivity.class.getSimpleName();
@@ -41,27 +36,14 @@ public class MainActivity extends AppCompatActivity {
      */
     private MainViewModel mainViewModel;
 
-//    数据源，转移到ViewModel层使用
-//    private ArrayList<MusicItemBean> data;
-
     private MusicItemAdapter adapter;
-
-//    private int currentPlayPosition = -1;
-
-
-//    转移至ViewModel层操作
-//    private MediaPlayer mediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate");
-//        setContentView(R.layout.activity_main);
         //修改为Databinding的方式setContentView
         ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-
-        //转移至ViewModel层操作，放在了MainViewModel初始化中进行
-//        mediaPlayer = new MediaPlayer();
 
         //mainViewModel初始化
         mainViewModel = new MainViewModel();
@@ -71,17 +53,12 @@ public class MainActivity extends AppCompatActivity {
         //传入viewModel到xml的data标签，使xml可以绑定使用mainViewModel对象
         binding.setMainViewModel(mainViewModel);
 
-        //转移至ViewModel层操作，放在了MainViewModel初始化中进行
-//        data = new ArrayList<>();
-
-        adapter = new MusicItemAdapter(this);
+        adapter = new MusicItemAdapter();
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         binding.rvMusicList.setAdapter(adapter);
         binding.rvMusicList.setLayoutManager(layoutManager);
         mCheckPermission();
-
-        //其实可以直接写adapter.setListener(adapterListener);  为了帮助理解视频代码所以使用方法
         setEventListener();
     }
 
@@ -94,17 +71,15 @@ public class MainActivity extends AppCompatActivity {
      * 建议按照生命周期对应注册和反注册，如此项目中在onCreate注册了Listener，则需要在onDestroy中反注册，或setListener = null
      * 一般在第二及以后得Activity/Fragment时需要反注册，避免回到第一个view的时候由于没有反注册litener而导致内存泄漏或者空指针崩溃
      */
-    private MusicItemAdapter.MusicItemListener adapterListener = new MusicItemAdapter.MusicItemListener() {
+    private final MusicItemAdapter.MusicItemListener adapterListener = new MusicItemAdapter.MusicItemListener() {
         @Override
         public void onItemCLick(int position) {
-            //转移至view层处理逻辑
-//            currentPlayPosition = position;
-            //转移至ViewModel执行，将position传入用于获取list中的对应bean
+            //将position传入用于获取list中的对应bean
             mainViewModel.playNewSong(position);
         }
     };
 
-    private MainViewModel.ViewModelListener viewModelListener = new MainViewModel.ViewModelListener() {
+    private final MainViewModel.ViewModelListener viewModelListener = new MainViewModel.ViewModelListener() {
         @Override
         public void updateData(ArrayList<MusicItemBean> data) {
             //不适用set之后直接调用adapter.notifyDataSetChanged(); 以方法的形式在adapter执行自身相关代码——不要在其他类执行非本类的逻辑处理
@@ -113,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void makeMyToast(String msg) {
-            Log.d(TAG, "makeMyToast()-> msg = " +msg);
+            Log.d(TAG, "makeMyToast()-> msg = " + msg);
             Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
         }
     };
@@ -124,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
     private void mCheckPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "get permission failed");
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
         } else {
             initMusicData();
         }
