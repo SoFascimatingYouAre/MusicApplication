@@ -1,8 +1,11 @@
 package com.mytest.musicapplication;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.v4.media.MediaBrowserCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -16,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.mytest.musicapplication.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author 翻箱子
@@ -62,7 +66,21 @@ public class MainActivity extends AppCompatActivity {
         setEventListener();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "onDestroy()");
+        //onDestroy主动销毁，省略空异常打印(懒得写)
+        if (adapter != null) {
+            adapter.setListener(null);
+        }
+        mainViewModel.onDestroy();
+//        TODO:stopService
+//        stopService()
+    }
+
     private void setEventListener() {
+        Log.d(TAG, "setEventListener()");
         adapter.setListener(adapterListener);
     }
 
@@ -74,6 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private final MusicItemAdapter.MusicItemListener adapterListener = new MusicItemAdapter.MusicItemListener() {
         @Override
         public void onItemCLick(int position) {
+            Log.d(TAG, "updateData() -> position = " + position);
             //将position传入用于获取list中的对应bean
             mainViewModel.playNewSong(position);
         }
@@ -82,14 +101,26 @@ public class MainActivity extends AppCompatActivity {
     private final MainViewModel.ViewModelListener viewModelListener = new MainViewModel.ViewModelListener() {
         @Override
         public void updateData(ArrayList<MusicItemBean> data) {
+            Log.d(TAG, "updateData()");
             //不适用set之后直接调用adapter.notifyDataSetChanged(); 以方法的形式在adapter执行自身相关代码——不要在其他类执行非本类的逻辑处理
             adapter.updateData(data);
+        }
+
+        @Override
+        public void updateMediaItemData(List<MediaBrowserCompat.MediaItem> data) {
+            adapter.updateMediaItemData(data);
         }
 
         @Override
         public void makeMyToast(String msg) {
             Log.d(TAG, "makeMyToast()-> msg = " + msg);
             Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public Context getContext() {
+            Log.d(TAG, "getContext");
+            return MainActivity.this;
         }
     };
 
@@ -101,35 +132,25 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "get permission failed");
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
         } else {
-            initMusicData();
+            initData();
         }
     }
 
     /**
      * 加载本地存储当中的音乐文件到集合当中
      */
-    private void initMusicData() {
+    private void initData() {
         //简化View层代码，转移到ViewModel层
-        mainViewModel.initMusicData(getContentResolver());
+        mainViewModel.createPlayerAndData(getContentResolver());
+        Intent intent = new Intent(this, MusicService.class);
+        startService(intent);
+        mainViewModel.initMediaBrowser(this);
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         Log.d(TAG, "onRequestPermissionsResult");
-        initMusicData();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        //onDestroy主动销毁，省略空异常打印(懒得写)
-        if (adapter != null) {
-            adapter.setListener(null);
-        }
-        if (mainViewModel != null) {
-            mainViewModel.stopMusic();
-            mainViewModel.setListener(null);
-        }
+        initData();
     }
 }

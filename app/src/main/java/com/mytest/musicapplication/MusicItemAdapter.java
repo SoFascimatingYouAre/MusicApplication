@@ -1,5 +1,6 @@
 package com.mytest.musicapplication;
 
+import android.support.v4.media.MediaBrowserCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
@@ -17,6 +18,8 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
     private static final String TAG = "[MusicApplication] " + MusicItemAdapter.class.getSimpleName();
 
     private List<MusicItemBean> data;
+
+    private List<MediaBrowserCompat.MediaItem> mediaItemData;
     MusicItemLayoutBinding binding;
     private MusicItemListener listener;
 
@@ -31,6 +34,12 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
         notifyDataSetChanged();
     }
 
+    public void updateMediaItemData(List<MediaBrowserCompat.MediaItem> mediaItemData) {
+        this.mediaItemData = mediaItemData;
+        //TODO: 有时间调查一下替换成什么其他更新方式更好
+//        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public MusicItemAdapterViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -42,9 +51,9 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
 
     @Override
     public void onBindViewHolder(@NonNull MusicItemAdapterViewHolder holder, int position) {
-        Log.d(TAG, "onBindViewHolder");
+        Log.v(TAG, "onBindViewHolder");
         MusicItemBean musicItemBean = data.get(position);
-        Log.d(TAG, "aid = " + musicItemBean.getId() + " position = " + position);
+        Log.v(TAG, "aid = " + musicItemBean.getId() + " position = " + position);
         holder.binding.txAllMusicNum.setText(musicItemBean.getId());
         holder.binding.tvSongName.setText(musicItemBean.getName());
         holder.binding.tvSongSinger.setText(musicItemBean.getSinger());
@@ -65,10 +74,7 @@ public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.Musi
 
     @Override
     public int getItemCount() {
-        Log.d(TAG, "getItemCount");
-        int size = data.size();
-        Log.d(TAG, "size = " + size);
-        return size;
+        return data.size();
     }
 
     @Override

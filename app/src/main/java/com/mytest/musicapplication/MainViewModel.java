@@ -1,13 +1,22 @@
 package com.mytest.musicapplication;
 
 import android.annotation.SuppressLint;
+import android.content.ComponentName;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.RemoteException;
 import android.provider.MediaStore;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.databinding.ObservableBoolean;
 import androidx.databinding.ObservableField;
 
@@ -15,6 +24,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * ViewModel层
@@ -22,20 +32,8 @@ import java.util.Date;
 public class MainViewModel {
     private static final String TAG = "[MusicApplication] " + MainViewModel.class.getSimpleName();
 
-    private final ArrayList<MusicItemBean> data;
-
-    /**
-     * 播放器
-     */
-    private final MediaPlayer mediaPlayer;
-
-    /**
-     * 当前正在播放的音乐在list中的下标
-     */
-    private int currentPlayPosition = -1;
-
-    //记录暂停音乐时进度条的位置
-    private int currentPausePositionInSong = 0;
+    private MediaBrowserCompat mBrowser;
+    private MediaControllerCompat mController;
 
     /**
      * 通知View层(MainActivity)修改UI界面的接口
@@ -46,17 +44,6 @@ public class MainViewModel {
         Log.d(TAG, "setListener");
         this.listener = listener;
     }
-
-    /**
-     * 无参构造，用于初始化成员变量
-     */
-    public MainViewModel() {
-        Log.d(TAG, "MainViewModel");
-        mediaPlayer = new MediaPlayer();
-        data = new ArrayList<>();
-    }
-
-
 
     /**
      * 歌曲名
@@ -76,68 +63,153 @@ public class MainViewModel {
      */
     public ObservableBoolean playOrPauseFlag = new ObservableBoolean(false);
 
+    public void onDestroy() {
+        Log.d(TAG, "disconnect()");
+        mBrowser.disconnect();
+        stopMusic();
+        setListener(null);
+    }
+
     /**
      * 加载本地存储当中的音乐文件到集合当中
      */
     @SuppressLint("Range")
-    public void initMusicData(ContentResolver resolver) {
-        Log.d(TAG, "initMusicData");
-        //1、获取ContentResolver对象  在View层获取，传递到此方法参数中
-//        ContentResolver resolver = getContentResolver();
-        //2、获取本地存储的URI地址
-        //只能获取到外部存储设备的媒体文件
-//        Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-
-
-        //此处修改为同时获取外部和内部的媒体文件
-        Uri externalUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-        Uri internalUri = MediaStore.Audio.Media.INTERNAL_CONTENT_URI;
-
-        Uri[] uris = new Uri[]{externalUri, internalUri};
-        int id = 1;
-        for (Uri uri : uris) {
-            //3开始查询地址
-            Cursor cursor = resolver.query(uri, null, null, null, null);
-            //4遍历Cursor
-            while (cursor.moveToNext()) {
-                String songName = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.TITLE));
-                String singer = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST));
-                String album = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM));
-                String path = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DATA));
-                long duration = cursor.getLong(cursor.getColumnIndex(MediaStore.Audio.Media.DURATION));
-                if (duration <= 30000) {
-                    Log.d(TAG, "duration = " + duration + " , drop this");
-                    continue;
-                }
-                String sid = String.valueOf(id);
-                Log.d(TAG, "sid = " + sid);
-                id++;
-                SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
-                String time = sdf.format(new Date(duration));
-                Log.d(TAG, "duration = " + duration + " time = " + time);
-                //将一行当中的数据封装到对象当中
-                MusicItemBean bean = new MusicItemBean(sid, songName, singer, album, time, path);
-                data.add(bean);
-            }
-            //cursor使用后要及时关闭避免内存泄漏，视频中未提出！
-            cursor.close();
-        }
-        //数据源变化，提示adapter更新，adapter在View层，通过接口通知View更新数据
-//        adapter.updateData(data);
+    public void createPlayerAndData(ContentResolver resolver) {
+        MusicManager.getInstance().createPlayerAndData(resolver);
+        MusicManager.getInstance().setMusicDataListener(musicDataListener);
         if (listener != null) {
-            listener.updateData(data);
+            listener.updateData(MusicManager.getInstance().data);
         } else {
             Log.e(TAG, "initMusicData()-> listener is NULL!");
         }
-
     }
+
+    private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
+        @Override
+        public void onNameChanged(String newName) {
+            name.set(newName);
+        }
+
+        @Override
+        public void onSingerChanged(String newSinger) {
+            singer.set(newSinger);
+        }
+
+        @Override
+        public void onPlayStatusChanged(Boolean isPlaying) {
+            playOrPauseFlag.set(isPlaying);
+        }
+    };
+
+    public void initMediaBrowser(Context context) {
+        mBrowser = new MediaBrowserCompat(context, new ComponentName(context, MusicService.class), mediaBrowserCallback, null);
+        //Browser发送连接请求
+        Log.d(TAG, "connect()");
+        mBrowser.connect();
+    }
+
+    private final MediaBrowserCompat.ConnectionCallback mediaBrowserCallback = new MediaBrowserCompat.ConnectionCallback() {
+        @Override
+        public void onConnected() {
+//            super.onConnected();
+            /*作者：Anlia
+            链接：https://juejin.cn/post/6844903575814930439*/
+            Log.d(TAG, "onConnected");
+            if (mBrowser.isConnected()) {
+                //mediaId即为MediaBrowserService.onGetRoot的返回值
+                //若Service允许客户端连接，则返回结果不为null，其值为数据内容层次结构的根ID
+                //若拒绝连接，则返回null
+                String mediaId = mBrowser.getRoot();
+
+                //Browser通过订阅的方式向Service请求数据，发起订阅请求需要两个参数，其一为mediaId
+                //而如果该mediaId已经被其他Browser实例订阅，则需要在订阅之前取消mediaId的订阅者
+                //虽然订阅一个 已被订阅的mediaId 时会取代原Browser的订阅回调，但却无法触发onChildrenLoaded回调
+
+                //ps：虽然基本的概念是这样的，但是Google在官方demo中有这么一段注释...
+                // This is temporary: A bug is being fixed that will make subscribe
+                // consistently call onChildrenLoaded initially, no matter if it is replacing an existing
+                // subscriber or not. Currently this only happens if the mediaID has no previous
+                // subscriber or if the media content changes on the service side, so we need to
+                // unsubscribe first.
+                //大概的意思就是现在这里还有BUG，即只要发送订阅请求就会触发onChildrenLoaded回调
+                //所以无论怎样我们发起订阅请求之前都需要先取消订阅
+                mBrowser.unsubscribe(mediaId);
+                //之前说到订阅的方法还需要一个参数，即设置订阅回调SubscriptionCallback
+                //当Service获取数据后会将数据发送回来，此时会触发SubscriptionCallback.onChildrenLoaded回调
+                mBrowser.subscribe(mediaId, browserSubscriptionCallback);
+
+                try{
+                    mController = new MediaControllerCompat(listener.getContext(),mBrowser.getSessionToken());
+                    mController.registerCallback(controllerCallback);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        @Override
+        public void onConnectionFailed() {
+//            super.onConnectionFailed();
+            Log.d(TAG, "onConnectionFailed");
+        }
+    };
+
+    private final MediaBrowserCompat.SubscriptionCallback browserSubscriptionCallback = new MediaBrowserCompat.SubscriptionCallback() {
+        @Override
+        public void onChildrenLoaded(@NonNull String parentId, @NonNull List<MediaBrowserCompat.MediaItem> children) {
+            super.onChildrenLoaded(parentId, children);
+            Log.d(TAG,"onChildrenLoaded------");
+            List<MediaBrowserCompat.MediaItem> list = new ArrayList<>();
+            //children 即为Service发送回来的媒体数据集合
+            for (MediaBrowserCompat.MediaItem item:children){
+                item.getDescription().getTitle().toString();
+                Log.v(TAG, item.getDescription().getTitle().toString());
+                list.add(item);
+            }
+            //在onChildrenLoaded可以执行刷新列表UI的操作
+//            listener.updateMediaItemData(list);
+        }
+    };
+
+//    TODO: 暂时无法修改状态，此位置无法接收到回调数据
+    private final MediaControllerCompat.Callback controllerCallback =
+            new MediaControllerCompat.Callback() {
+                /***
+                 * 音乐播放状态改变的回调
+                 * @param state 播放状态
+                 */
+                @Override
+                public void onPlaybackStateChanged(PlaybackStateCompat state) {
+                    switch (state.getState()){
+                        case PlaybackStateCompat.STATE_NONE://无任何状态
+                            name.set("");
+                            playOrPauseFlag.set(false);
+                            break;
+                        case PlaybackStateCompat.STATE_PAUSED:
+                            playOrPauseFlag.set(false);
+                            break;
+                        case PlaybackStateCompat.STATE_PLAYING:
+                            playOrPauseFlag.set(true);
+                            break;
+                    }
+                }
+
+                /**
+                 * 播放音乐改变的回调
+                 * @param metadata 音乐信息
+                 */
+                @Override
+                public void onMetadataChanged(MediaMetadataCompat metadata) {
+                    name.set(metadata.getDescription().getTitle().toString());
+                }
+            };
 
     /**
      * 上一曲
      */
-    public void playBefore() {
-        Log.d(TAG, "playBefore");
-        if (currentPlayPosition == 0) {
+    public void playLast() {
+        Log.d(TAG, "playLast");
+        if (MusicManager.getInstance().currentPlayPosition == 0) {
             if (listener != null) {
                 listener.makeMyToast("已经是第一首了，没有上一曲辣");
             } else {
@@ -145,11 +217,7 @@ public class MainViewModel {
             }
             return;
         }
-//        currentPlayPosition --;
-        //因为在本行就需要使用currentPlayPosition对象，需要先赋值后运算，所以使用--currentPlayPosition而不是 currentPlayPosition--，不信的话自己创建个int值，分两次运行打印i++的值和++i的值就知道了
-//        int i = 0; Log.d(TAG, "i = " + ++i);
-        MusicItemBean lastBean = data.get(--currentPlayPosition);
-        playMusicInPosition(lastBean);
+        MusicManager.getInstance().playLast();
     }
 
     /**
@@ -157,7 +225,7 @@ public class MainViewModel {
      */
     public void playNext() {
         Log.d(TAG, "playNext");
-        if (currentPlayPosition == data.size()-1) {
+        if (MusicManager.getInstance().currentPlayPosition == MusicManager.getInstance().data.size()-1) {
             if (listener != null) {
                 listener.makeMyToast("已经是最后一首了，没有下一曲辣");
             } else {
@@ -165,144 +233,39 @@ public class MainViewModel {
             }
             return;
         }
-//        currentPlayPosition ++;
-        //因为在本行就需要使用currentPlayPosition对象，需要先赋值后运算，所以使用++currentPlayPosition而不是 currentPlayPosition++
-        MusicItemBean nextBean = data.get(++currentPlayPosition);
-        playMusicInPosition(nextBean);
+        MusicManager.getInstance().playNext();
     }
 
     /**
      * 播放/暂停
      */
     public void playOrPause() {
-        Log.d(TAG, "playOrPause()-> currentPlayPosition = " + currentPlayPosition);
-        if (currentPlayPosition == -1) {
-            //Toast属于View层代码，通过接口传递到Activity处理
+        Log.d(TAG, "playOrPause");
+        if (MusicManager.getInstance().currentPlayPosition == -1) {
             if (listener != null) {
                 listener.makeMyToast("请选择想要播放的音乐");
             } else {
-                //判空
                 Log.e(TAG, "playOrPause()-> listener is NULL!");
             }
             return;
         }
-        if (mediaPlayer.isPlaying()) {
-            //此时处于播放状态，需要暂停音乐
-            pauseMusic();
-        } else {
-            //此时没有播放音乐，点击开始播放音乐
-            playMusic();
-        }
-
+        MusicManager.getInstance().playOrPause();
     }
 
     /**
      * 点击列表歌曲，准备播放
      */
     public void playNewSong(int position) {
-        currentPlayPosition = position;
-        MusicItemBean bean = data.get(position);
-        playMusicInPosition(bean);
-    }
-
-    /**
-     * 根据传入对象播放音乐
-     * 最后一个视频中重新封装了播放指定下标的音乐方法
-     * @param bean 音乐信息实体类
-     */
-    private void playMusicInPosition(MusicItemBean bean) {
-        //打印歌曲信息
-        Log.d(TAG, bean.toString());
-
-        singer.set(bean.getSinger());
-        name.set(bean.getName());
-        stopMusic();
-
-        //重置多媒体播放器
-        mediaPlayer.reset();
-
-        //设置新的路径
-        try {
-            mediaPlayer.setDataSource(bean.getPath());
-            //设置路径成功后播放新音乐
-            playMusic();
-        } catch (Exception e) {
-            Log.d(TAG, e.toString());
-        }
-    }
-
-    /**
-     * 播放新音乐时暂停后，播放音乐的函数
-     * 点击播放按钮播放音乐，或者暂停音乐从新播放
-     * 1，从暂停到播放
-     * 2，从停止到播放
-     */
-    private void playMusic() {
-        if (mediaPlayer != null) {
-            //判空和状态判断应该分开处理
-            if (!mediaPlayer.isPlaying()) {
-
-                //最后一个视频中标记当前播放时长的标志位，在前面视频中先看这个判断内部的东西
-                if (currentPausePositionInSong == 0) {
-
-                    //从停止到播放
-                    try {
-                        mediaPlayer.prepare();
-                        mediaPlayer.start();
-
-                    } catch (IOException e) {
-                        Log.d(TAG, e.toString());
-                    }
-                } else {
-                    //从暂停到播放
-                    mediaPlayer.seekTo(currentPausePositionInSong);
-                    mediaPlayer.start();
-                }
-
-                //开始播放之后把标志位设置为播放状态
-                playOrPauseFlag.set(true);
-            }
-        } else {
-            //判空应该增加异常打印
-            Log.e(TAG, "stopMusic()-> mediaPlayer is NULL!");
-        }
-    }
-
-    /**
-     * 暂停音乐
-     */
-    private void pauseMusic() {
-        //视频中说mediaPlayer不为空是整个方法的前提，所以此处判空方式为：先判null，再判断播放状态，这两个条件是相互独立的，不要放在同一个if中
-        if (mediaPlayer == null){
-            Log.e(TAG, "pauseMusic()-> mediaPlayer is NULL!");
-            return;
-        }
-        if (mediaPlayer.isPlaying()){
-            currentPausePositionInSong = mediaPlayer.getCurrentPosition();
-            mediaPlayer.pause();
-
-            //设置为false是暂停状态，也就是需要显示播放按钮
-            playOrPauseFlag.set(false);
-        }
+        Log.d(TAG, "playNewSong");
+        MusicManager.getInstance().playNewSong(position);
     }
 
     /**
      * 播放新音乐之前先停止音乐，View销毁时需要停止播放，此处改为public修饰
      */
     public void stopMusic() {
-        if (mediaPlayer != null) {
-            //最后一个视频中标记当前播放时长的标志位，在前面视频中先忽略currentPausePositionInSong即可
-            currentPausePositionInSong = 0;
-            mediaPlayer.pause();
-            mediaPlayer.seekTo(0);
-            mediaPlayer.stop();
-
-//      playIv.setImageResourse(xxxxxxxx);此处省略，由于已经使用Databinding实现双向绑定，我们只需要修改playOrPause标志位来控制播放按钮的状态
-            playOrPauseFlag.set(false);
-        } else {
-            //判空应该增加异常打印
-            Log.e(TAG, "stopMusic()-> mediaPlayer is NULL!");
-        }
+        Log.d(TAG, "stopMusic");
+        MusicManager.getInstance().stopMusic();
     }
 
     public interface ViewModelListener {
@@ -313,6 +276,12 @@ public class MainViewModel {
          */
         void updateData(ArrayList<MusicItemBean> data);
 
+        void updateMediaItemData(List<MediaBrowserCompat.MediaItem> data);
+
         void makeMyToast(String msg);
+
+        default Context getContext() {
+            return null;
+        };
     }
 }

@@ -105,7 +105,7 @@
                 android:gravity="center"
                 android:text=" ◁ "
                 android:textSize="35sp"
-                android:onClick="@{()-> mainViewModel.playBefore()}"/>
+                android:onClick="@{()-> mainViewModel.playLast()}"/>
 
         </RelativeLayout>
     </RelativeLayout>
