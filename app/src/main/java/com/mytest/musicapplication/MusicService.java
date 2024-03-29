@@ -10,6 +10,7 @@ import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
+import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -91,6 +92,7 @@ public class MusicService extends MediaBrowserServiceCompat {
          */
         @Override
         public void onPlay() {
+            //在通过语音助手使用相应方法时会收到onPlay()、onPause()、onSkipToNext()、onSkipToPrevious()等回调
             Log.e(TAG,"onPlay() -> mPlaybackState = " + mPlaybackState.getState());
             if(mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED){
                 MusicManager.getInstance().playOrPause();
@@ -131,7 +133,13 @@ public class MusicService extends MediaBrowserServiceCompat {
 
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+            //在通过蓝牙耳机点击下一曲时，会触发此方法
+            //一次下一曲功能的使用会触发两次，KeyEvent中的action分别为ACTION_DOWN / ACTION_UP
             Log.e(TAG,"onMediaButtonEvent() -> mPlaybackState = " + mPlaybackState.getState());
+            KeyEvent keyEvent = mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+            if (keyEvent != null) {
+                Log.e(TAG,"onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
+            }
             return super.onMediaButtonEvent(mediaButtonEvent);
         }
 
