@@ -57,8 +57,22 @@ public class MusicManager {
 
     public void createPlayerAndData(ContentResolver resolver) {
         mediaPlayer = new MediaPlayer();
+        setMediaPlayerListener();
         data = new ArrayList<>();
         initMusicData(resolver);
+    }
+
+    private void setMediaPlayerListener() {
+        mediaPlayer.setOnPreparedListener(mp -> {
+//            mediaPlayer.start();
+        });
+        mediaPlayer.setOnCompletionListener(mp -> {
+
+        });
+        mediaPlayer.setOnSeekCompleteListener(mp -> {
+//            mediaPlayer.start();
+        });
+
     }
 
     public void registerMusicDataListener(MusicDataListener musicDataListener) {

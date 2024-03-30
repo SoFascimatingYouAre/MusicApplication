@@ -1,0 +1,10 @@
+1、MediaPlayer加入播放状态监听，根据不同状态给MainViewModel中的playOrPause属性更细化的设置状态，同时要将状态发给Service，用作Notification的提前准备
+2、ForegroundService。用前台服务制作系统内定样式的Notification，并通过Notification实现上下一曲、暂停播放的功能。
+3、保存最后的播放信息，下次启动时自动使用。
+4、进度条功能。要在主页和通知中都加入进度条和SeekTo功能，最好再加入滑动SeekTo。
+5、(可选)UI优化
+
+最终挑战：
+6、寻找免费新源，实现网络流媒体播放(流媒体播放的学习极大可能异常艰难)。
+7、学习广告植入、混淆、等反破解方法。
+8、应用发布，公开apk，招商。
