@@ -42,6 +42,8 @@ public class MainActivity extends AppCompatActivity {
 
     private MusicItemAdapter adapter;
 
+    private Intent intent;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,8 +77,7 @@ public class MainActivity extends AppCompatActivity {
             adapter.setListener(null);
         }
         mainViewModel.onDestroy();
-//        TODO:stopService
-//        stopService()
+        stopService(intent);
     }
 
     private void setEventListener() {
@@ -138,12 +139,14 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 加载本地存储当中的音乐文件到集合当中
+     * 需要先启动Service再初始化Manager。流程如下：
+     * startService --Service.onCreate--> setPlayBackState(NONE)  --addListener-->Manager --initPlayer --player动作-->listener--newState-->Service--setPlayBackState(newState)
      */
     private void initData() {
+        intent = new Intent(this, MusicService.class);
+        startService(intent);
         //简化View层代码，转移到ViewModel层
         mainViewModel.createPlayerAndData(getContentResolver());
-        Intent intent = new Intent(this, MusicService.class);
-        startService(intent);
         mainViewModel.initMediaBrowser(this);
     }
 

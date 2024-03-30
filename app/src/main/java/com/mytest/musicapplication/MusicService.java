@@ -30,7 +30,13 @@ public class MusicService extends MediaBrowserServiceCompat {
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.d(TAG, "onCreate");
         musicList = MusicManager.getInstance().data;
+        initMediaSession();
+        MusicManager.getInstance().registerMusicDataListener(musicDataListener);
+    }
+
+    private void initMediaSession() {
         mPlaybackState = new PlaybackStateCompat.Builder()
                 .setState(PlaybackStateCompat.STATE_NONE,0,1.0f)
                 .build();
@@ -49,6 +55,8 @@ public class MusicService extends MediaBrowserServiceCompat {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Log.d(TAG, "onDestroy");
+        MusicManager.getInstance().unRegisterMusicDataListener(musicDataListener);
         mediaSession.setActive(false);
         mediaSession.release();
     }
@@ -83,6 +91,22 @@ public class MusicService extends MediaBrowserServiceCompat {
         result.sendResult(mediaItems);
     }
 
+    private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
+        @Override
+        public void onNameChanged(String newName) {}
+
+        @Override
+        public void onSingerChanged(String newSinger) {}
+
+        @Override
+        public void onPlayStatusChanged(Boolean isPlaying) {
+            //使用的是同一个mPlaybackState对象，不需要重新setPlaybackState
+            mPlaybackState = new PlaybackStateCompat.Builder()
+                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,0,1.0f)
+                    .build();
+        }
+    };
+
     /**
      * 响应控制器指令的回调
      */
@@ -99,7 +123,6 @@ public class MusicService extends MediaBrowserServiceCompat {
                 mPlaybackState = new PlaybackStateCompat.Builder()
                         .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
                         .build();
-                mediaSession.setPlaybackState(mPlaybackState);
             }
         }
 
@@ -114,21 +137,27 @@ public class MusicService extends MediaBrowserServiceCompat {
                 mPlaybackState = new PlaybackStateCompat.Builder()
                         .setState(PlaybackStateCompat.STATE_PAUSED,0,1.0f)
                         .build();
-                mediaSession.setPlaybackState(mPlaybackState);
             }
+        }
+
+        @Override
+        public void onSkipToPrevious() {
+            super.onSkipToPrevious();
+            Log.e(TAG,"onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
+            MusicManager.getInstance().playLast();
+            mPlaybackState = new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
+                    .build();
         }
 
         @Override
         public void onSkipToNext() {
             super.onSkipToNext();
             Log.e(TAG,"onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
-            if(mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED){
-                MusicManager.getInstance().playNext();
-                mPlaybackState = new PlaybackStateCompat.Builder()
-                        .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
-                        .build();
-                mediaSession.setPlaybackState(mPlaybackState);
-            }
+            MusicManager.getInstance().playNext();
+            mPlaybackState = new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
+                    .build();
         }
 
         @Override

@@ -68,6 +68,7 @@ public class MainViewModel {
         mBrowser.disconnect();
         stopMusic();
         setListener(null);
+        MusicManager.getInstance().unRegisterMusicDataListener(musicDataListener);
     }
 
     /**
@@ -76,7 +77,7 @@ public class MainViewModel {
     @SuppressLint("Range")
     public void createPlayerAndData(ContentResolver resolver) {
         MusicManager.getInstance().createPlayerAndData(resolver);
-        MusicManager.getInstance().setMusicDataListener(musicDataListener);
+        MusicManager.getInstance().registerMusicDataListener(musicDataListener);
         if (listener != null) {
             listener.updateData(MusicManager.getInstance().data);
         } else {

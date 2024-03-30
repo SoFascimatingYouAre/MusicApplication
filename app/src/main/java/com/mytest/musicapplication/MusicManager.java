@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class MusicManager {
     private static final String TAG = MusicManager.class.getSimpleName();
@@ -36,7 +37,7 @@ public class MusicManager {
     /**
      * 播放器
      */
-    private MediaPlayer mediaPlayer;
+    public MediaPlayer mediaPlayer;
 
 
     /**
@@ -52,7 +53,7 @@ public class MusicManager {
     //记录暂停音乐时进度条的位置
     private int currentPausePositionInSong = 0;
 
-    private MusicDataListener musicDataListener;
+    private final List<MusicDataListener> musicDataListeners = new ArrayList<>();
 
     public void createPlayerAndData(ContentResolver resolver) {
         mediaPlayer = new MediaPlayer();
@@ -60,8 +61,12 @@ public class MusicManager {
         initMusicData(resolver);
     }
 
-    public void setMusicDataListener(MusicDataListener musicDataListener) {
-        this.musicDataListener = musicDataListener;
+    public void registerMusicDataListener(MusicDataListener musicDataListener) {
+        this.musicDataListeners.add(musicDataListener);
+    }
+
+    public void unRegisterMusicDataListener(MusicDataListener musicDataListener) {
+        this.musicDataListeners.remove(musicDataListener);
     }
 
     /**
@@ -160,8 +165,8 @@ public class MusicManager {
         //打印歌曲信息
         Log.d(TAG, bean.toString());
 
-        musicDataListener.onSingerChanged(bean.getSinger());
-        musicDataListener.onNameChanged(bean.getName());
+        onSingerChanged(bean.getSinger());
+        onNameChanged(bean.getName());
         stopMusic();
 
         //重置多媒体播放器
@@ -206,7 +211,7 @@ public class MusicManager {
                 }
 
                 //开始播放之后把标志位设置为播放状态
-                musicDataListener.onPlayStatusChanged(true);
+                onPlayStatusChanged(true);
             }
         } else {
             //判空应该增加异常打印
@@ -227,7 +232,7 @@ public class MusicManager {
             mediaPlayer.pause();
 
             //设置为false是暂停状态，也就是需要显示播放按钮
-            musicDataListener.onPlayStatusChanged(false);
+            onPlayStatusChanged(false);
         }
     }
 
@@ -240,10 +245,28 @@ public class MusicManager {
             mediaPlayer.pause();
             mediaPlayer.seekTo(0);
             mediaPlayer.stop();
-            musicDataListener.onPlayStatusChanged(false);
+            onPlayStatusChanged(false);
         } else {
             //判空应该增加异常打印
             Log.e(TAG, "stopMusic()-> mediaPlayer is NULL!");
+        }
+    }
+
+    private void onNameChanged(String newName) {
+        for (MusicDataListener musicDataListener: musicDataListeners) {
+            musicDataListener.onNameChanged(newName);
+        }
+    }
+
+    private void onSingerChanged(String newSinger) {
+        for (MusicDataListener musicDataListener: musicDataListeners) {
+            musicDataListener.onSingerChanged(newSinger);
+        }
+    }
+
+    private void onPlayStatusChanged(Boolean isPlaying) {
+        for (MusicDataListener musicDataListener: musicDataListeners) {
+            musicDataListener.onPlayStatusChanged(isPlaying);
         }
     }
 
