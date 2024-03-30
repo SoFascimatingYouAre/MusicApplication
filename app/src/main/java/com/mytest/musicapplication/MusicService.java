@@ -1,8 +1,10 @@
 package com.mytest.musicapplication;
 
-import static android.support.v4.media.session.MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS;
-
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.media.MediaBrowserCompat;
@@ -27,23 +29,26 @@ public class MusicService extends MediaBrowserServiceCompat {
     private MediaSessionCompat mediaSession;
     private PlaybackStateCompat mPlaybackState;
 
+    private DeviceDisconnectReceiver bluetoothDisconnectReceiver;
+
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate");
         musicList = MusicManager.getInstance().data;
         initMediaSession();
+        initReceiver();
         MusicManager.getInstance().registerMusicDataListener(musicDataListener);
     }
 
     private void initMediaSession() {
         mPlaybackState = new PlaybackStateCompat.Builder()
-                .setState(PlaybackStateCompat.STATE_NONE,0,1.0f)
+                .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
                 .build();
 
-        mediaSession = new MediaSessionCompat(this,"MusicService");
+        mediaSession = new MediaSessionCompat(this, "MusicService");
         mediaSession.setCallback(sessionCallback);
-        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | FLAG_HANDLES_MEDIA_BUTTONS );
+//        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | FLAG_HANDLES_MEDIA_BUTTONS );
         mediaSession.setPlaybackState(mPlaybackState);
 
         //设置token后会触发MediaBrowserCompat.ConnectionCallback的回调方法
@@ -52,11 +57,19 @@ public class MusicService extends MediaBrowserServiceCompat {
         mediaSession.setActive(true);
     }
 
+    private void initReceiver() {
+        bluetoothDisconnectReceiver = new DeviceDisconnectReceiver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        registerReceiver(bluetoothDisconnectReceiver, filter);
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "onDestroy");
         MusicManager.getInstance().unRegisterMusicDataListener(musicDataListener);
+        unregisterReceiver(bluetoothDisconnectReceiver);
         mediaSession.setActive(false);
         mediaSession.release();
     }
@@ -64,15 +77,15 @@ public class MusicService extends MediaBrowserServiceCompat {
     @Nullable
     @Override
     public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
-        Log.d(TAG,"onGetRoot-----------");
+        Log.d(TAG, "onGetRoot-----------");
         return new BrowserRoot(MEDIA_ID_ROOT, null);
     }
 
     @Override
     public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
-        Log.d(TAG,"onLoadChildren-----------");
+        Log.d(TAG, "onLoadChildren-----------");
         List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<>();
-        for (MusicItemBean musicItem:musicList) {
+        for (MusicItemBean musicItem : musicList) {
             MediaDescriptionCompat mediaDescription = new MediaDescriptionCompat.Builder()
                     .setMediaId(musicItem.getPath()) // 设置媒体ID，可以是音频文件的路径等唯一标识
                     .setTitle(musicItem.getName()) // 设置音频文件的标题
@@ -92,36 +105,41 @@ public class MusicService extends MediaBrowserServiceCompat {
     }
 
     private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
-        @Override
-        public void onNameChanged(String newName) {}
 
         @Override
-        public void onSingerChanged(String newSinger) {}
+        public void onMusicDataChanged(String newName, String newSinger) {
+
+        }
 
         @Override
         public void onPlayStatusChanged(Boolean isPlaying) {
             //使用的是同一个mPlaybackState对象，不需要重新setPlaybackState
             mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,0,1.0f)
+                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
                     .build();
+        }
+
+        @Override
+        public void onPlaybackStateChanged(PlaybackStateCompat status) {
+
         }
     };
 
     /**
      * 响应控制器指令的回调
      */
-    private final MediaSessionCompat.Callback sessionCallback = new MediaSessionCompat.Callback(){
+    private final MediaSessionCompat.Callback sessionCallback = new MediaSessionCompat.Callback() {
         /**
          * 响应MediaController.getTransportControls().play
          */
         @Override
         public void onPlay() {
             //在通过语音助手使用相应方法时会收到onPlay()、onPause()、onSkipToNext()、onSkipToPrevious()等回调
-            Log.e(TAG,"onPlay() -> mPlaybackState = " + mPlaybackState.getState());
-            if(mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED){
+            Log.e(TAG, "onPlay() -> mPlaybackState = " + mPlaybackState.getState());
+            if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 MusicManager.getInstance().playOrPause();
                 mPlaybackState = new PlaybackStateCompat.Builder()
-                        .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
+                        .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
                         .build();
             }
         }
@@ -131,11 +149,11 @@ public class MusicService extends MediaBrowserServiceCompat {
          */
         @Override
         public void onPause() {
-            Log.e(TAG,"onPause() -> mPlaybackState = " + mPlaybackState.getState());
-            if(mPlaybackState.getState() == PlaybackStateCompat.STATE_PLAYING){
+            Log.e(TAG, "onPause() -> mPlaybackState = " + mPlaybackState.getState());
+            if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PLAYING) {
                 MusicManager.getInstance().playOrPause();
                 mPlaybackState = new PlaybackStateCompat.Builder()
-                        .setState(PlaybackStateCompat.STATE_PAUSED,0,1.0f)
+                        .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
                         .build();
             }
         }
@@ -143,20 +161,20 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToPrevious() {
             super.onSkipToPrevious();
-            Log.e(TAG,"onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.e(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playLast();
             mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
                     .build();
         }
 
         @Override
         public void onSkipToNext() {
             super.onSkipToNext();
-            Log.e(TAG,"onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.e(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playNext();
             mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING,0,1.0f)
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
                     .build();
         }
 
@@ -164,10 +182,22 @@ public class MusicService extends MediaBrowserServiceCompat {
         public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
             //在通过蓝牙耳机点击下一曲时，会触发此方法
             //一次下一曲功能的使用会触发两次，KeyEvent中的action分别为ACTION_DOWN / ACTION_UP
-            Log.e(TAG,"onMediaButtonEvent() -> mPlaybackState = " + mPlaybackState.getState());
             KeyEvent keyEvent = mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
-            if (keyEvent != null) {
-                Log.e(TAG,"onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
+            Log.d(TAG, "onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
+            if (keyEvent != null && keyEvent.getAction() == KeyEvent.ACTION_UP) {
+                switch (keyEvent.getKeyCode()) {
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        MusicManager.getInstance().playOrPause();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+                        MusicManager.getInstance().playNext();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                        MusicManager.getInstance().playLast();
+                        break;
+
+                }
             }
             return super.onMediaButtonEvent(mediaButtonEvent);
         }
@@ -179,7 +209,7 @@ public class MusicService extends MediaBrowserServiceCompat {
          */
         @Override
         public void onPlayFromUri(Uri uri, Bundle extras) {
-            Log.e(TAG,"onPlayFromUri");
+            Log.e(TAG, "onPlayFromUri");
 //            try {
 //                switch (mPlaybackState.getState()){
 //                    case PlaybackStateCompat.STATE_PLAYING:
@@ -203,9 +233,29 @@ public class MusicService extends MediaBrowserServiceCompat {
 //                e.printStackTrace();
 //            }
         }
-
-        @Override
-        public void onPlayFromSearch(String query, Bundle extras) {
-        }
     };
+}
+
+class DeviceDisconnectReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        Log.e("fxz", "action = " + action);
+        if (action != null && action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
+            if (MusicManager.getInstance().mediaPlayer.isPlaying()) {
+                MusicManager.getInstance().playOrPause();
+            }
+        }
+        //DeviceDisconnectReceiver来源：https://blog.csdn.net/crazestone0614/article/details/135412491
+        //以下仅用作学习蓝牙协议的代码，无实际作用
+        //因为有线耳机拔出时，蓝牙协议的判断没有作用。所以只需要接收ACTION_AUDIO_BECOMING_NOISY状态即可
+//        if (action != null && action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
+//            AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+//            if (audioManager != null && (audioManager.isBluetoothScoOn() || audioManager.isBluetoothA2dpOn())) {
+//                if (MusicManager.getInstance().mediaPlayer.isPlaying()) {
+//                    MusicManager.getInstance().playOrPause();
+//                }
+//            }
+//        }
+    }
 }

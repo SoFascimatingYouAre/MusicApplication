@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.provider.MediaStore;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 
 import java.io.IOException;
@@ -64,13 +65,13 @@ public class MusicManager {
 
     private void setMediaPlayerListener() {
         mediaPlayer.setOnPreparedListener(mp -> {
-//            mediaPlayer.start();
+            mediaPlayer.start();
         });
         mediaPlayer.setOnCompletionListener(mp -> {
-
+            playNext();
         });
         mediaPlayer.setOnSeekCompleteListener(mp -> {
-//            mediaPlayer.start();
+
         });
 
     }
@@ -179,8 +180,7 @@ public class MusicManager {
         //打印歌曲信息
         Log.d(TAG, bean.toString());
 
-        onSingerChanged(bean.getSinger());
-        onNameChanged(bean.getName());
+        onMusicDataChanged(bean.getName(), bean.getSinger());
         stopMusic();
 
         //重置多媒体播放器
@@ -220,7 +220,6 @@ public class MusicManager {
                     }
                 } else {
                     //从暂停到播放
-                    mediaPlayer.seekTo(currentPausePositionInSong);
                     mediaPlayer.start();
                 }
 
@@ -266,15 +265,9 @@ public class MusicManager {
         }
     }
 
-    private void onNameChanged(String newName) {
+    private void onMusicDataChanged(String newName, String newSinger) {
         for (MusicDataListener musicDataListener: musicDataListeners) {
-            musicDataListener.onNameChanged(newName);
-        }
-    }
-
-    private void onSingerChanged(String newSinger) {
-        for (MusicDataListener musicDataListener: musicDataListeners) {
-            musicDataListener.onSingerChanged(newSinger);
+            musicDataListener.onMusicDataChanged(newName, newSinger);
         }
     }
 
@@ -285,10 +278,10 @@ public class MusicManager {
     }
 
     public interface MusicDataListener {
-        void onNameChanged(String newName);
-
-        void onSingerChanged(String newSinger);
+        void onMusicDataChanged(String newName, String newSinger);
 
         void onPlayStatusChanged(Boolean isPlaying);
+
+        void onPlaybackStateChanged(PlaybackStateCompat status);
     }
 }

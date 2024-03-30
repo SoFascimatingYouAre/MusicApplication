@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.mytest.musicapplication.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -35,6 +36,8 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "[MusicApplication] " + MainActivity.class.getSimpleName();
 
+    private ActivityMainBinding binding;
+
     /**
      * View层代码
      */
@@ -48,8 +51,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate");
-        //修改为Databinding的方式setContentView
-        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        //修改为DataBinding的方式setContentView
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
 
         //mainViewModel初始化
         mainViewModel = new MainViewModel();
@@ -64,8 +67,8 @@ public class MainActivity extends AppCompatActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         binding.rvMusicList.setAdapter(adapter);
         binding.rvMusicList.setLayoutManager(layoutManager);
-        mCheckPermission();
         setEventListener();
+        mCheckPermission();
     }
 
     @Override
@@ -126,18 +129,6 @@ public class MainActivity extends AppCompatActivity {
     };
 
     /**
-     * 检查权限,动态获取权限
-     */
-    private void mCheckPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "get permission failed");
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
-        } else {
-            initData();
-        }
-    }
-
-    /**
      * 加载本地存储当中的音乐文件到集合当中
      * 需要先启动Service再初始化Manager。流程如下：
      * startService --Service.onCreate--> setPlayBackState(NONE)  --addListener-->Manager --initPlayer --player动作-->listener--newState-->Service--setPlayBackState(newState)
@@ -150,10 +141,39 @@ public class MainActivity extends AppCompatActivity {
         mainViewModel.initMediaBrowser(this);
     }
 
+    /**
+     * 检查权限,动态获取权限
+     */
+    private void mCheckPermission() {
+        List<String> permissionNameList = new ArrayList<>();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissionNameList.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+        //经过实验，获取位置信息与蓝牙断开广播无关，可恶的ChatGPT骗我
+//        if (ContextCompat.checkSelfPermission(this,
+//                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+//                || ContextCompat.checkSelfPermission(this,
+//                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//            permissionNameList.add(Manifest.permission.ACCESS_FINE_LOCATION);
+//            permissionNameList.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+//        }
+        if (!permissionNameList.isEmpty()) {
+            Log.e(TAG, "get permission failed");
+            int size = permissionNameList.size();
+            String[] permissionList = new String[size];
+            for (int i=0;i<size;i++) {
+                permissionList[i] = permissionNameList.get(i);
+            }
+            ActivityCompat.requestPermissions(this, permissionList, 0);
+        } else {
+            initData();
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        Log.d(TAG, "onRequestPermissionsResult");
+        Log.d(TAG, "onRequestPermissionsResult() -> grantResults = " + Arrays.toString(grantResults));
         initData();
     }
 }

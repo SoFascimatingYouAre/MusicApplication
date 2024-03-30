@@ -4,15 +4,9 @@ import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.database.Cursor;
-import android.media.MediaPlayer;
-import android.net.Uri;
-import android.os.RemoteException;
-import android.provider.MediaStore;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 
@@ -20,10 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.databinding.ObservableBoolean;
 import androidx.databinding.ObservableField;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -87,18 +78,19 @@ public class MainViewModel {
 
     private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
         @Override
-        public void onNameChanged(String newName) {
+        public void onMusicDataChanged(String newName, String newSinger) {
             name.set(newName);
-        }
-
-        @Override
-        public void onSingerChanged(String newSinger) {
             singer.set(newSinger);
         }
 
         @Override
         public void onPlayStatusChanged(Boolean isPlaying) {
             playOrPauseFlag.set(isPlaying);
+        }
+
+        @Override
+        public void onPlaybackStateChanged(PlaybackStateCompat status) {
+
         }
     };
 
@@ -139,10 +131,10 @@ public class MainViewModel {
                 //当Service获取数据后会将数据发送回来，此时会触发SubscriptionCallback.onChildrenLoaded回调
                 mBrowser.subscribe(mediaId, browserSubscriptionCallback);
 
-                try{
-                    mController = new MediaControllerCompat(listener.getContext(),mBrowser.getSessionToken());
+                try {
+                    mController = new MediaControllerCompat(listener.getContext(), mBrowser.getSessionToken());
                     mController.registerCallback(controllerCallback);
-                }catch (Exception e){
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -159,10 +151,10 @@ public class MainViewModel {
         @Override
         public void onChildrenLoaded(@NonNull String parentId, @NonNull List<MediaBrowserCompat.MediaItem> children) {
             super.onChildrenLoaded(parentId, children);
-            Log.d(TAG,"onChildrenLoaded------");
+            Log.d(TAG, "onChildrenLoaded------");
             List<MediaBrowserCompat.MediaItem> list = new ArrayList<>();
             //children 即为Service发送回来的媒体数据集合
-            for (MediaBrowserCompat.MediaItem item:children){
+            for (MediaBrowserCompat.MediaItem item : children) {
                 item.getDescription().getTitle().toString();
                 Log.v(TAG, item.getDescription().getTitle().toString());
                 list.add(item);
@@ -172,7 +164,7 @@ public class MainViewModel {
         }
     };
 
-//    TODO: 暂时无法修改状态，此位置无法接收到回调数据
+    //    TODO: 暂时无法修改状态，此位置无法接收到回调数据
     private final MediaControllerCompat.Callback controllerCallback =
             new MediaControllerCompat.Callback() {
                 /***
@@ -181,7 +173,7 @@ public class MainViewModel {
                  */
                 @Override
                 public void onPlaybackStateChanged(PlaybackStateCompat state) {
-                    switch (state.getState()){
+                    switch (state.getState()) {
                         case PlaybackStateCompat.STATE_NONE://无任何状态
                             name.set("");
                             playOrPauseFlag.set(false);
@@ -226,7 +218,7 @@ public class MainViewModel {
      */
     public void playNext() {
         Log.d(TAG, "playNext");
-        if (MusicManager.getInstance().currentPlayPosition == MusicManager.getInstance().data.size()-1) {
+        if (MusicManager.getInstance().currentPlayPosition == MusicManager.getInstance().data.size() - 1) {
             if (listener != null) {
                 listener.makeMyToast("已经是最后一首了，没有下一曲辣");
             } else {
@@ -273,6 +265,7 @@ public class MainViewModel {
 
         /**
          * /数据源变化，提示adapter更新，adapter在View层，通过接口通知View更新数据
+         *
          * @param data 歌曲信息
          */
         void updateData(ArrayList<MusicItemBean> data);
@@ -283,6 +276,6 @@ public class MainViewModel {
 
         default Context getContext() {
             return null;
-        };
+        }
     }
 }

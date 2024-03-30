@@ -11,13 +11,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.mytest.musicapplication.databinding.MusicItemLayoutBinding;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MusicItemAdapter extends RecyclerView.Adapter<MusicItemAdapter.MusicItemAdapterViewHolder> {
 
     private static final String TAG = "[MusicApplication] " + MusicItemAdapter.class.getSimpleName();
 
-    private List<MusicItemBean> data;
+    private List<MusicItemBean> data = new ArrayList<>();
 
     private List<MediaBrowserCompat.MediaItem> mediaItemData;
     MusicItemLayoutBinding binding;
