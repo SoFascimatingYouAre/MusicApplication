@@ -7,6 +7,8 @@ import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.session.MediaSessionCompat;
@@ -29,7 +31,29 @@ public class MusicService extends MediaBrowserServiceCompat {
     private MediaSessionCompat mediaSession;
     private PlaybackStateCompat mPlaybackState;
 
-    private DeviceDisconnectReceiver bluetoothDisconnectReceiver;
+    private DeviceDisconnectReceiver deviceDisconnectReceiver;
+
+    /**
+     * 线控耳机连点计数
+     * 由于线控耳机不区分准确的功能，需要按照计数的方式执行对应任务
+     */
+    int count = 0;
+    Handler handler = new Handler(Looper.getMainLooper());
+    Runnable doControlAction = () -> {
+        //由于延迟0.5秒，用户连续点击数可能大于3,不做对应case，算所用户反悔，不想执行任何动作
+        switch (count) {
+            case 1:
+                MusicManager.getInstance().playOrPause();
+                break;
+            case 2:
+                MusicManager.getInstance().playNext();
+                break;
+            case 3:
+                MusicManager.getInstance().playLast();
+                break;
+        }
+        count = 0;
+    };
 
     @Override
     public void onCreate() {
@@ -46,9 +70,17 @@ public class MusicService extends MediaBrowserServiceCompat {
                 .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
                 .build();
 
+        //若需要处理媒体按钮事件，需要加入pendingIntent，但是有线耳机的指令也会在onMediaButtonEvent中收到，此位置不再使用
+//        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+//        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+//                getBaseContext(),
+//                0,
+//                mediaButtonIntent,
+//                PendingIntent.FLAG_IMMUTABLE
+//        );
+//        mediaSession = new MediaSessionCompat(this, "MusicService", null, pendingIntent);
         mediaSession = new MediaSessionCompat(this, "MusicService");
         mediaSession.setCallback(sessionCallback);
-//        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | FLAG_HANDLES_MEDIA_BUTTONS );
         mediaSession.setPlaybackState(mPlaybackState);
 
         //设置token后会触发MediaBrowserCompat.ConnectionCallback的回调方法
@@ -58,10 +90,10 @@ public class MusicService extends MediaBrowserServiceCompat {
     }
 
     private void initReceiver() {
-        bluetoothDisconnectReceiver = new DeviceDisconnectReceiver();
+        deviceDisconnectReceiver = new DeviceDisconnectReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
-        registerReceiver(bluetoothDisconnectReceiver, filter);
+        registerReceiver(deviceDisconnectReceiver, filter);
     }
 
     @Override
@@ -69,7 +101,7 @@ public class MusicService extends MediaBrowserServiceCompat {
         super.onDestroy();
         Log.d(TAG, "onDestroy");
         MusicManager.getInstance().unRegisterMusicDataListener(musicDataListener);
-        unregisterReceiver(bluetoothDisconnectReceiver);
+        unregisterReceiver(deviceDisconnectReceiver);
         mediaSession.setActive(false);
         mediaSession.release();
     }
@@ -196,6 +228,11 @@ public class MusicService extends MediaBrowserServiceCompat {
                     case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
                         MusicManager.getInstance().playLast();
                         break;
+                    case KeyEvent.KEYCODE_HEADSETHOOK:
+                        //线控耳机只会发出KEYCODE_HEADSETHOOK，通过计数方式控制
+                        handler.removeCallbacks(doControlAction);
+                        count++;
+                        handler.postDelayed(doControlAction, 500);
 
                 }
             }
@@ -204,8 +241,8 @@ public class MusicService extends MediaBrowserServiceCompat {
 
         /**
          * 响应MediaController.getTransportControls().playFromUri
-         * @param uri
-         * @param extras
+         * @param uri 信息
+         * @param extras 额外信息
          */
         @Override
         public void onPlayFromUri(Uri uri, Bundle extras) {
@@ -240,13 +277,18 @@ class DeviceDisconnectReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        Log.e("fxz", "action = " + action);
-        if (action != null && action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
+        if (action == null) {
+            Log.e("HeadsetEventReceiver", "action is NULL!");
+            return;
+        }
+        Log.d("HeadsetEventReceiver", "action = " + action);
+        if (action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
+//            来源：https://blog.csdn.net/crazestone0614/article/details/135412491
             if (MusicManager.getInstance().mediaPlayer.isPlaying()) {
                 MusicManager.getInstance().playOrPause();
             }
         }
-        //DeviceDisconnectReceiver来源：https://blog.csdn.net/crazestone0614/article/details/135412491
+
         //以下仅用作学习蓝牙协议的代码，无实际作用
         //因为有线耳机拔出时，蓝牙协议的判断没有作用。所以只需要接收ACTION_AUDIO_BECOMING_NOISY状态即可
 //        if (action != null && action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
