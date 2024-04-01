@@ -1,11 +1,17 @@
 package com.mytest.musicapplication;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,6 +24,7 @@ import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
 
 import java.util.ArrayList;
@@ -27,11 +34,24 @@ public class MusicService extends MediaBrowserServiceCompat {
     private static final String TAG = MusicService.class.getSimpleName();
     private static final String MEDIA_ID_ROOT = "FANXIANGZI_MUSIC_PLAYER";
 
+    private static final int NOTIFICATION_ID = 12138;
+
+    private static final String CHANNEL_ID = "music_channel";
+    private static final String PLAY_LAST = "LAST";
+    private static final String PLAY_PAUSE = "PLAY_PAUSE";
+    private static final String PLAY_NEXT = "NEXT";
+
     private List<MusicItemBean> musicList;
     private MediaSessionCompat mediaSession;
     private PlaybackStateCompat mPlaybackState;
 
     private DeviceDisconnectReceiver deviceDisconnectReceiver;
+
+    private String notificationSongName;
+
+    private String notificationSinger;
+
+    private boolean playBackState = false;
 
     /**
      * 线控耳机连点计数
@@ -60,8 +80,14 @@ public class MusicService extends MediaBrowserServiceCompat {
         super.onCreate();
         Log.d(TAG, "onCreate");
         musicList = MusicManager.getInstance().data;
+        notificationSongName = getResources().getString(R.string.notification_song_name);
+        notificationSinger = getResources().getString(R.string.notification_singer);
         initMediaSession();
         initReceiver();
+        // 创建通知渠道（仅适用于 Android 8.0 及更高版本）
+        createNotificationChannel();
+        // 启动通知
+        startForeground(NOTIFICATION_ID, createNotification());
         MusicManager.getInstance().registerMusicDataListener(musicDataListener);
     }
 
@@ -96,6 +122,65 @@ public class MusicService extends MediaBrowserServiceCompat {
         registerReceiver(deviceDisconnectReceiver, filter);
     }
 
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "My Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
+        }
+    }
+
+    private Notification createNotification() {
+        // 创建一个PendingIntent，用于启动应用的主活动
+        Intent intent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        // 创建一个PendingIntent，用于响应播放/暂停按钮的点击事件
+        PendingIntent lastPendingIntent = PendingIntent.getService(
+                this, 0, new Intent(this, MusicService.class).setAction(PLAY_LAST), PendingIntent.FLAG_IMMUTABLE);
+
+        // 创建一个PendingIntent，用于响应播放/暂停按钮的点击事件
+        PendingIntent playPausePendingIntent = PendingIntent.getService(
+                this, 0, new Intent(this, MusicService.class).setAction(PLAY_PAUSE), PendingIntent.FLAG_IMMUTABLE);
+
+        // 创建一个PendingIntent，用于响应下一曲按钮的点击事件
+        PendingIntent nextPendingIntent = PendingIntent.getService(
+                this, 0, new Intent(this, MusicService.class).setAction(PLAY_NEXT), PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(notificationSongName)
+                .setContentText(notificationSinger)
+                .setContentIntent(pendingIntent)
+                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                        .setShowActionsInCompactView(0, 1, 2) // 设置紧凑视图中要显示的操作
+                        .setMediaSession(mediaSession.getSessionToken())) // 关联MediaSession
+                .addAction(R.drawable.notification_play_last, PLAY_LAST, lastPendingIntent) // 添加播放/暂停按钮
+                .addAction(playBackState ? R.drawable.notification_pause : R.drawable.notification_play, PLAY_PAUSE, playPausePendingIntent) // 添加播放/暂停按钮
+                .addAction(R.drawable.notification_play_next, PLAY_NEXT, nextPendingIntent) // 添加下一曲按钮
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+        return builder.build();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String action = intent.getAction();
+            if (PLAY_PAUSE.equals(action)) {
+                MusicManager.getInstance().playOrPause();
+            } else if (PLAY_LAST.equals(action)) {
+                MusicManager.getInstance().playLast();
+            } else if (PLAY_NEXT.equals(action)) {
+                MusicManager.getInstance().playNext();
+            }
+        }
+        return super.onStartCommand(intent, flags, startId);
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -104,6 +189,7 @@ public class MusicService extends MediaBrowserServiceCompat {
         unregisterReceiver(deviceDisconnectReceiver);
         mediaSession.setActive(false);
         mediaSession.release();
+        stopForeground(Service.STOP_FOREGROUND_REMOVE);
     }
 
     @Nullable
@@ -140,7 +226,9 @@ public class MusicService extends MediaBrowserServiceCompat {
 
         @Override
         public void onMusicDataChanged(String newName, String newSinger) {
-
+            notificationSongName = newName;
+            notificationSinger = newSinger;
+            startForeground(NOTIFICATION_ID, createNotification());
         }
 
         @Override
@@ -149,6 +237,8 @@ public class MusicService extends MediaBrowserServiceCompat {
             mPlaybackState = new PlaybackStateCompat.Builder()
                     .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
                     .build();
+            playBackState = isPlaying;
+            startForeground(NOTIFICATION_ID, createNotification());
         }
 
         @Override
@@ -167,7 +257,7 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             //在通过语音助手使用相应方法时会收到onPlay()、onPause()、onSkipToNext()、onSkipToPrevious()等回调
-            Log.e(TAG, "onPlay() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.v(TAG, "onPlay() -> mPlaybackState = " + mPlaybackState.getState());
             if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 MusicManager.getInstance().playOrPause();
                 mPlaybackState = new PlaybackStateCompat.Builder()
@@ -181,7 +271,7 @@ public class MusicService extends MediaBrowserServiceCompat {
          */
         @Override
         public void onPause() {
-            Log.e(TAG, "onPause() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.v(TAG, "onPause() -> mPlaybackState = " + mPlaybackState.getState());
             if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PLAYING) {
                 MusicManager.getInstance().playOrPause();
                 mPlaybackState = new PlaybackStateCompat.Builder()
@@ -193,7 +283,7 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToPrevious() {
             super.onSkipToPrevious();
-            Log.e(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.v(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playLast();
             mPlaybackState = new PlaybackStateCompat.Builder()
                     .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
@@ -203,7 +293,7 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToNext() {
             super.onSkipToNext();
-            Log.e(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
+            Log.v(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playNext();
             mPlaybackState = new PlaybackStateCompat.Builder()
                     .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
@@ -215,7 +305,7 @@ public class MusicService extends MediaBrowserServiceCompat {
             //在通过蓝牙耳机点击下一曲时，会触发此方法
             //一次下一曲功能的使用会触发两次，KeyEvent中的action分别为ACTION_DOWN / ACTION_UP
             KeyEvent keyEvent = mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
-            Log.d(TAG, "onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
+            Log.v(TAG, "onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
             if (keyEvent != null && keyEvent.getAction() == KeyEvent.ACTION_UP) {
                 switch (keyEvent.getKeyCode()) {
                     case KeyEvent.KEYCODE_MEDIA_PAUSE:

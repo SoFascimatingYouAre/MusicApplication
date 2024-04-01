@@ -1,6 +1,8 @@
+学习任务目标：
 1、(完成)MediaPlayer加入播放状态监听，根据不同状态给MainViewModel中的playOrPause属性更细化的设置状态，同时要将状态发给Service，用作Notification的提前准备,断开蓝牙时要停止播放。
-2、有线耳机需要实现播放/暂停/上下一曲功能。
-3、ForegroundService。用前台服务制作系统内定样式的Notification，并通过Notification实现上下一曲、暂停播放的功能。并加入音频焦点控制(如何可以让多个设备同时播放)。
+2、(完成)有线耳机需要实现播放/暂停/上下一曲功能。
+3、ForegroundService。用前台服务制作系统内定样式的Notification，并通过Notification实现上下一曲、暂停播放 音乐时长显示，SeekTo功能。并加入音频焦点控制(如何可以让多个设备同时播放)。
+3.5（复习）
 4、保存最后的播放信息，下次启动时自动使用。
 5、进度条功能。要在主页和通知中都加入进度条和SeekTo功能，最好再加入滑动SeekTo。
 6、(可选)UI优化
@@ -10,5 +12,9 @@
 8、学习广告植入、混淆、等反破解方法。
 9、应用发布，公开apk，招商。
 
-通过onMediaButtonEvent()->keyCode为KEYCODE_HEADSETHOOK的方式监听线控耳机
-不再需要addAction(ACTION_MEDIA_BUTTON)的方式
+更新日志：
+新增媒体通知栏，可以控制上下一曲、暂停播放
+
+备忘待办：
+(重要)manager需要给MainViewModel和Service同时发送数组越界消息，暂定调用Manager#play等方法时，返回一个boolean值，判断是否可以成功执行
+通知栏背景
