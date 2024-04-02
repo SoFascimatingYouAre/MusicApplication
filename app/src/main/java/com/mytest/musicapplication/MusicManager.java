@@ -20,7 +20,8 @@ public class MusicManager {
 
     private static volatile MusicManager musicManager;
 
-    private MusicManager() {}
+    private MusicManager() {
+    }
 
 
     public static MusicManager getInstance() {
@@ -66,6 +67,9 @@ public class MusicManager {
     private void setMediaPlayerListener() {
         mediaPlayer.setOnPreparedListener(mp -> {
             mediaPlayer.start();
+
+            //开始播放之后把标志位设置为播放状态
+            onPlayStatusChanged(true);
         });
         mediaPlayer.setOnCompletionListener(mp -> {
             playNext();
@@ -111,7 +115,7 @@ public class MusicManager {
                     continue;
                 }
                 String sid = String.valueOf(id);
-                Log.d(TAG, "sid = " + sid);
+                Log.v(TAG, "sid = " + sid);
                 id++;
                 SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
                 String time = sdf.format(new Date(duration));
@@ -129,29 +133,38 @@ public class MusicManager {
     /**
      * 上一曲
      */
-    public void playLast() {
+    public boolean playLast() {
         Log.d(TAG, "playLast");
+        if (currentPlayPosition <= 0) {
+            return false;
+        }
         MusicItemBean lastBean = data.get(--currentPlayPosition);
         playMusicInPosition(lastBean);
+        return true;
     }
 
     /**
      * 下一曲
      */
-    public void playNext() {
+    public boolean playNext() {
         Log.d(TAG, "playNext");
-        if (MusicManager.getInstance().currentPlayPosition == MusicManager.getInstance().data.size()-1) {
-            return;
+        if (currentPlayPosition == data.size() - 1
+                || currentPlayPosition == -1) {
+            return false;
         }
         MusicItemBean nextBean = data.get(++currentPlayPosition);
         playMusicInPosition(nextBean);
+        return true;
     }
 
     /**
      * 播放/暂停
      */
-    public void playOrPause() {
+    public boolean playOrPause() {
         Log.d(TAG, "playOrPause()-> currentPlayPosition = " + currentPlayPosition);
+        if (currentPlayPosition == -1) {
+            return false;
+        }
         if (mediaPlayer.isPlaying()) {
             //此时处于播放状态，需要暂停音乐
             pauseMusic();
@@ -159,7 +172,7 @@ public class MusicManager {
             //此时没有播放音乐，点击开始播放音乐
             playMusic();
         }
-
+        return true;
     }
 
     /**
@@ -174,6 +187,7 @@ public class MusicManager {
     /**
      * 根据传入对象播放音乐
      * 最后一个视频中重新封装了播放指定下标的音乐方法
+     *
      * @param bean 音乐信息实体类
      */
     private void playMusicInPosition(MusicItemBean bean) {
@@ -192,7 +206,7 @@ public class MusicManager {
             //设置路径成功后播放新音乐
             playMusic();
         } catch (Exception e) {
-            Log.d(TAG, e.toString());
+            Log.e(TAG, e.toString());
         }
     }
 
@@ -203,32 +217,25 @@ public class MusicManager {
      * 2，从停止到播放
      */
     private void playMusic() {
-        if (mediaPlayer != null) {
-            //判空和状态判断应该分开处理
-            if (!mediaPlayer.isPlaying()) {
+        if (!mediaPlayer.isPlaying()) {
 
-                //最后一个视频中标记当前播放时长的标志位，在前面视频中先看这个判断内部的东西
-                if (currentPausePositionInSong == 0) {
+            //最后一个视频中标记当前播放时长的标志位，在前面视频中先看这个判断内部的东西
+            if (currentPausePositionInSong == 0) {
 
-                    //从停止到播放
-                    try {
-                        mediaPlayer.prepare();
-                        mediaPlayer.start();
+                //从停止到播放
+                try {
+                    mediaPlayer.prepare();
 
-                    } catch (IOException e) {
-                        Log.d(TAG, e.toString());
-                    }
-                } else {
-                    //从暂停到播放
-                    mediaPlayer.start();
+                } catch (IOException e) {
+                    Log.d(TAG, e.toString());
                 }
+            } else {
+                //从暂停到播放
+                mediaPlayer.start();
 
                 //开始播放之后把标志位设置为播放状态
                 onPlayStatusChanged(true);
             }
-        } else {
-            //判空应该增加异常打印
-            Log.e(TAG, "stopMusic()-> mediaPlayer is NULL!");
         }
     }
 
@@ -236,11 +243,11 @@ public class MusicManager {
      * 暂停音乐
      */
     private void pauseMusic() {
-        if (mediaPlayer == null){
+        if (mediaPlayer == null) {
             Log.e(TAG, "pauseMusic()-> mediaPlayer is NULL!");
             return;
         }
-        if (mediaPlayer.isPlaying()){
+        if (mediaPlayer.isPlaying()) {
             currentPausePositionInSong = mediaPlayer.getCurrentPosition();
             mediaPlayer.pause();
 
@@ -266,13 +273,13 @@ public class MusicManager {
     }
 
     private void onMusicDataChanged(String newName, String newSinger) {
-        for (MusicDataListener musicDataListener: musicDataListeners) {
+        for (MusicDataListener musicDataListener : musicDataListeners) {
             musicDataListener.onMusicDataChanged(newName, newSinger);
         }
     }
 
     private void onPlayStatusChanged(Boolean isPlaying) {
-        for (MusicDataListener musicDataListener: musicDataListeners) {
+        for (MusicDataListener musicDataListener : musicDataListeners) {
             musicDataListener.onPlayStatusChanged(isPlaying);
         }
     }

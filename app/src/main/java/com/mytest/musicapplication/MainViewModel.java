@@ -22,6 +22,9 @@ import java.util.List;
  */
 public class MainViewModel {
     private static final String TAG = "[MusicApplication] " + MainViewModel.class.getSimpleName();
+    public static final int THIS_IS_FIRST_SONG = 1;
+    public static final int THIS_IS_LAST_SONG = 2;
+    public static final int CHECK_MUSIC_PLEASE = 3;
 
     private MediaBrowserCompat mBrowser;
     private MediaControllerCompat mController;
@@ -202,15 +205,14 @@ public class MainViewModel {
      */
     public void playLast() {
         Log.d(TAG, "playLast");
-        if (MusicManager.getInstance().currentPlayPosition == 0) {
+        boolean playResult = MusicManager.getInstance().playLast();
+        if (!playResult) {
             if (listener != null) {
-                listener.makeMyToast("已经是第一首了，没有上一曲辣");
+                listener.makeMyToast(MusicManager.getInstance().currentPlayPosition == -1 ? CHECK_MUSIC_PLEASE : THIS_IS_FIRST_SONG);
             } else {
                 Log.e(TAG, "playBefore()-> listener is NULL!");
             }
-            return;
         }
-        MusicManager.getInstance().playLast();
     }
 
     /**
@@ -218,15 +220,15 @@ public class MainViewModel {
      */
     public void playNext() {
         Log.d(TAG, "playNext");
-        if (MusicManager.getInstance().currentPlayPosition == MusicManager.getInstance().data.size() - 1) {
+        boolean playResult = MusicManager.getInstance().playNext();
+        if (!playResult) {
             if (listener != null) {
-                listener.makeMyToast("已经是最后一首了，没有下一曲辣");
+                listener.makeMyToast(MusicManager.getInstance().currentPlayPosition == -1 ? CHECK_MUSIC_PLEASE : THIS_IS_LAST_SONG);
             } else {
                 Log.e(TAG, "playBefore()-> listener is NULL!");
             }
-            return;
         }
-        MusicManager.getInstance().playNext();
+
     }
 
     /**
@@ -234,15 +236,14 @@ public class MainViewModel {
      */
     public void playOrPause() {
         Log.d(TAG, "playOrPause");
-        if (MusicManager.getInstance().currentPlayPosition == -1) {
+        boolean playResult =  MusicManager.getInstance().playOrPause();
+        if (!playResult) {
             if (listener != null) {
-                listener.makeMyToast("请选择想要播放的音乐");
+                listener.makeMyToast(CHECK_MUSIC_PLEASE);
             } else {
                 Log.e(TAG, "playOrPause()-> listener is NULL!");
             }
-            return;
         }
-        MusicManager.getInstance().playOrPause();
     }
 
     /**
@@ -272,7 +273,7 @@ public class MainViewModel {
 
         void updateMediaItemData(List<MediaBrowserCompat.MediaItem> data);
 
-        void makeMyToast(String msg);
+        void makeMyToast(int msg);
 
         default Context getContext() {
             return null;

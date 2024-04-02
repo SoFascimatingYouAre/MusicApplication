@@ -2,5 +2,8 @@
     <string name="app_name">MusicApplication</string>
     <string name="notification_song_name">音乐</string>
     <string name="notification_singer">听我想听的歌</string>
+    <string name="toast_this_is_first_song">已经是第一首了，没有上一曲辣</string>
+    <string name="toast_this_is_last_song">已经是最后一首了，没有下一曲辣</string>
+    <string name="toast_check_music_please">请选择想要播放的音乐</string>
 
 </resources>

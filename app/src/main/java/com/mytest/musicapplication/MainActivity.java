@@ -29,9 +29,9 @@ import java.util.List;
  * ViewModel层处理所有逻辑，View层只负责修改UI相关的代码，若需要adapter更新则由View进行通知
  * 该项目xml中View的id和视频中有所区别，但足够见名知义
  * 项目视频链接：
- *      <a href="https://www.bilibili.com/video/BV1oJ41197fi?p=1&vd_source=764e8a00ab53b6d7aeeb3332b569fdb1">
- *          Android实战练习--超简单本地音乐播放器
- *      </a>
+ * <a href="https://www.bilibili.com/video/BV1oJ41197fi?p=1&vd_source=764e8a00ab53b6d7aeeb3332b569fdb1">
+ * Android实战练习--超简单本地音乐播放器
+ * </a>
  */
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "[MusicApplication] " + MainActivity.class.getSimpleName();
@@ -116,9 +116,23 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void makeMyToast(String msg) {
+        public void makeMyToast(int msg) {
             Log.d(TAG, "makeMyToast()-> msg = " + msg);
-            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+            String message = "";
+            switch (msg) {
+                case MainViewModel.THIS_IS_FIRST_SONG:
+                    message = getResources().getString(R.string.toast_this_is_first_song);
+                    break;
+                case MainViewModel.THIS_IS_LAST_SONG:
+                    message = getResources().getString(R.string.toast_this_is_last_song);
+                    break;
+                case MainViewModel.CHECK_MUSIC_PLEASE:
+                    message = getResources().getString(R.string.toast_check_music_please);
+                    break;
+            }
+            if (!message.isEmpty()) {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
         }
 
         @Override
@@ -161,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "get permission failed");
             int size = permissionNameList.size();
             String[] permissionList = new String[size];
-            for (int i=0;i<size;i++) {
+            for (int i = 0; i < size; i++) {
                 permissionList[i] = permissionNameList.get(i);
             }
             ActivityCompat.requestPermissions(this, permissionList, 0);
