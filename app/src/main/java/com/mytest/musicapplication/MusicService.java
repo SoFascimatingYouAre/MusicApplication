@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -151,6 +152,9 @@ public class MusicService extends MediaBrowserServiceCompat {
         PendingIntent nextPendingIntent = PendingIntent.getService(
                 this, 0, new Intent(this, MusicService.class).setAction(PLAY_NEXT), PendingIntent.FLAG_IMMUTABLE);
 
+        Bitmap bitmap = Bitmap.createBitmap(40, 40,
+                Bitmap.Config.ARGB_8888);
+        bitmap.eraseColor(getResources().getColor(R.color.notification_background_color));//填充颜色
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(notificationSongName)
@@ -162,6 +166,7 @@ public class MusicService extends MediaBrowserServiceCompat {
                 .addAction(R.drawable.notification_play_last, PLAY_LAST, lastPendingIntent) // 添加播放/暂停按钮
                 .addAction(playBackState ? R.drawable.notification_pause : R.drawable.notification_play, PLAY_PAUSE, playPausePendingIntent) // 添加播放/暂停按钮
                 .addAction(R.drawable.notification_play_next, PLAY_NEXT, nextPendingIntent) // 添加下一曲按钮
+                .setLargeIcon(bitmap) //根据不同系统魔改方式不同，效果不同。比如小米是替换背景图片，荣耀是放一张缩略图上去
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         return builder.build();
     }
