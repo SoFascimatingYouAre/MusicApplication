@@ -45,12 +45,12 @@ public class MusicManager {
     /**
      * 播放列表
      */
-    public ArrayList<MusicItemBean> data;
+    private ArrayList<MusicItemBean> data;
 
     /**
      * 当前正在播放的音乐在list中的下标
      */
-    public int currentPlayPosition = -1;
+    private int currentPlayPosition = -1;
 
     //记录暂停音乐时进度条的位置
     private int currentPausePositionInSong = 0;
@@ -121,7 +121,7 @@ public class MusicManager {
                 String time = sdf.format(new Date(duration));
                 Log.v(TAG, "duration = " + duration + " time = " + time);
                 //将一行当中的数据封装到对象当中
-                MusicItemBean bean = new MusicItemBean(sid, songName, singer, album, time, path);
+                MusicItemBean bean = new MusicItemBean(sid, songName, singer, album, time, path, duration);
                 data.add(bean);
             }
             //cursor使用后要及时关闭避免内存泄漏，视频中未提出！
@@ -194,7 +194,7 @@ public class MusicManager {
         //打印歌曲信息
         Log.d(TAG, bean.toString());
 
-        onMusicDataChanged(bean.getName(), bean.getSinger());
+        onMusicDataChanged(bean);
         stopMusic();
 
         //重置多媒体播放器
@@ -272,9 +272,9 @@ public class MusicManager {
         }
     }
 
-    private void onMusicDataChanged(String newName, String newSinger) {
+    private void onMusicDataChanged(MusicItemBean musicData) {
         for (MusicDataListener musicDataListener : musicDataListeners) {
-            musicDataListener.onMusicDataChanged(newName, newSinger);
+            musicDataListener.onMusicDataChanged(musicData);
         }
     }
 
@@ -284,8 +284,17 @@ public class MusicManager {
         }
     }
 
+    public boolean isPlayerInitialized() {
+        return currentPlayPosition == -1;
+    }
+
+    public ArrayList<MusicItemBean> getPlayListData() {
+        return data;
+    }
+
+
     public interface MusicDataListener {
-        void onMusicDataChanged(String newName, String newSinger);
+        void onMusicDataChanged(MusicItemBean musicData);
 
         void onPlayStatusChanged(Boolean isPlaying);
 

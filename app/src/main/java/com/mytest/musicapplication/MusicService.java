@@ -48,9 +48,7 @@ public class MusicService extends MediaBrowserServiceCompat {
 
     private DeviceDisconnectReceiver deviceDisconnectReceiver;
 
-    private String notificationSongName;
-
-    private String notificationSinger;
+    private MusicItemBean currentMusic;
 
     private boolean playBackState = false;
 
@@ -80,9 +78,7 @@ public class MusicService extends MediaBrowserServiceCompat {
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate");
-        musicList = MusicManager.getInstance().data;
-        notificationSongName = getResources().getString(R.string.notification_song_name);
-        notificationSinger = getResources().getString(R.string.notification_singer);
+        musicList = MusicManager.getInstance().getPlayListData();
         initMediaSession();
         initReceiver();
         // 创建通知渠道（仅适用于 Android 8.0 及更高版本）
@@ -157,8 +153,8 @@ public class MusicService extends MediaBrowserServiceCompat {
         bitmap.eraseColor(getResources().getColor(R.color.notification_background_color));//填充颜色
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle(notificationSongName)
-                .setContentText(notificationSinger)
+                .setContentTitle(currentMusic == null ? getResources().getString(R.string.notification_default_song_name) : currentMusic.getName())
+                .setContentText(currentMusic == null ? getResources().getString(R.string.notification_default_song_name) : currentMusic.getSinger())
                 .setContentIntent(pendingIntent)
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                         .setShowActionsInCompactView(0, 1, 2) // 设置紧凑视图中要显示的操作
@@ -167,6 +163,7 @@ public class MusicService extends MediaBrowserServiceCompat {
                 .addAction(playBackState ? R.drawable.notification_pause : R.drawable.notification_play, PLAY_PAUSE, playPausePendingIntent) // 添加播放/暂停按钮
                 .addAction(R.drawable.notification_play_next, PLAY_NEXT, nextPendingIntent) // 添加下一曲按钮
                 .setLargeIcon(bitmap) //根据不同系统魔改方式不同，效果不同。比如小米是替换背景图片，荣耀是放一张缩略图上去
+//                .setProgress(currentMusic==null?0:100, 30, false)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         return builder.build();
     }
@@ -230,9 +227,8 @@ public class MusicService extends MediaBrowserServiceCompat {
     private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
 
         @Override
-        public void onMusicDataChanged(String newName, String newSinger) {
-            notificationSongName = newName;
-            notificationSinger = newSinger;
+        public void onMusicDataChanged(MusicItemBean musicData) {
+            currentMusic = musicData;
             startForeground(NOTIFICATION_ID, createNotification());
         }
 
@@ -332,6 +328,11 @@ public class MusicService extends MediaBrowserServiceCompat {
                 }
             }
             return super.onMediaButtonEvent(mediaButtonEvent);
+        }
+
+        @Override
+        public void onSeekTo(long pos) {
+            super.onSeekTo(pos);
         }
 
         /**

@@ -73,7 +73,7 @@ public class MainViewModel {
         MusicManager.getInstance().createPlayerAndData(resolver);
         MusicManager.getInstance().registerMusicDataListener(musicDataListener);
         if (listener != null) {
-            listener.updateData(MusicManager.getInstance().data);
+            listener.updateData(MusicManager.getInstance().getPlayListData());
         } else {
             Log.e(TAG, "initMusicData()-> listener is NULL!");
         }
@@ -81,9 +81,9 @@ public class MainViewModel {
 
     private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
         @Override
-        public void onMusicDataChanged(String newName, String newSinger) {
-            name.set(newName);
-            singer.set(newSinger);
+        public void onMusicDataChanged(MusicItemBean musicData) {
+            name.set(musicData.getName());
+            singer.set(musicData.getSinger());
         }
 
         @Override
@@ -208,7 +208,7 @@ public class MainViewModel {
         boolean playResult = MusicManager.getInstance().playLast();
         if (!playResult) {
             if (listener != null) {
-                listener.makeMyToast(MusicManager.getInstance().currentPlayPosition == -1 ? CHECK_MUSIC_PLEASE : THIS_IS_FIRST_SONG);
+                listener.makeMyToast(MusicManager.getInstance().isPlayerInitialized() ? CHECK_MUSIC_PLEASE : THIS_IS_FIRST_SONG);
             } else {
                 Log.e(TAG, "playBefore()-> listener is NULL!");
             }
@@ -223,7 +223,7 @@ public class MainViewModel {
         boolean playResult = MusicManager.getInstance().playNext();
         if (!playResult) {
             if (listener != null) {
-                listener.makeMyToast(MusicManager.getInstance().currentPlayPosition == -1 ? CHECK_MUSIC_PLEASE : THIS_IS_LAST_SONG);
+                listener.makeMyToast(MusicManager.getInstance().isPlayerInitialized() ? CHECK_MUSIC_PLEASE : THIS_IS_LAST_SONG);
             } else {
                 Log.e(TAG, "playBefore()-> listener is NULL!");
             }
@@ -236,7 +236,7 @@ public class MainViewModel {
      */
     public void playOrPause() {
         Log.d(TAG, "playOrPause");
-        boolean playResult =  MusicManager.getInstance().playOrPause();
+        boolean playResult = MusicManager.getInstance().playOrPause();
         if (!playResult) {
             if (listener != null) {
                 listener.makeMyToast(CHECK_MUSIC_PLEASE);

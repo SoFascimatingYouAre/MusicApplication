@@ -4,69 +4,66 @@ import androidx.annotation.NonNull;
 
 public class MusicItemBean {
     private static final String TAG = "[MusicApplication] " + MusicItemBean.class.getSimpleName();
-
+    @NonNull
     private String id;
+    @NonNull
     private String name;
+    @NonNull
     private String singer;
+    @NonNull
     private String album;
+    @NonNull
     private String time;
+    @NonNull
     private String path;
+    private long duration;
 
-    public MusicItemBean(String id, String name, String singer, String album, String time, String path) {
+    public MusicItemBean(@NonNull String id, @NonNull String name, @NonNull String singer, @NonNull String album, @NonNull String time, @NonNull String path, long duration) {
         this.id = id;
         this.name = name;
         this.singer = singer;
         this.album = album;
         this.time = time;
         this.path = path;
+        this.duration = duration;
     }
 
+    @NonNull
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
+    @NonNull
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
+    @NonNull
     public String getSinger() {
         return singer;
     }
 
-    public void setSinger(String singer) {
-        this.singer = singer;
-    }
-
+    @NonNull
     public String getAlbum() {
         return album;
     }
 
-    public void setAlbum(String album) {
-        this.album = album;
-    }
-
+    @NonNull
     public String getTime() {
         return time;
     }
 
-    public void setTime(String time) {
-        this.time = time;
-    }
-
+    @NonNull
     public String getPath() {
         return path;
     }
 
-    public void setPath(String path) {
-        this.path = path;
+    public long getDuration() {
+        return duration;
+    }
+
+    public void setDuration(long duration) {
+        this.duration = duration;
     }
 
     @NonNull
@@ -79,6 +76,7 @@ public class MusicItemBean {
                 ", album='" + album + '\'' +
                 ", time='" + time + '\'' +
                 ", path='" + path + '\'' +
+                ", duration=" + duration +
                 '}';
     }
 }
