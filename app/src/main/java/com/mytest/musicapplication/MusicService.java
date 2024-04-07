@@ -18,6 +18,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
@@ -90,6 +91,13 @@ public class MusicService extends MediaBrowserServiceCompat {
 
     private void initMediaSession() {
         mPlaybackState = new PlaybackStateCompat.Builder()
+                .setActions(
+                        PlaybackStateCompat.ACTION_PLAY
+                                | PlaybackStateCompat.ACTION_PAUSE
+                                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                                | PlaybackStateCompat.ACTION_SEEK_TO
+                )
                 .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
                 .build();
 
@@ -163,7 +171,6 @@ public class MusicService extends MediaBrowserServiceCompat {
                 .addAction(playBackState ? R.drawable.notification_pause : R.drawable.notification_play, PLAY_PAUSE, playPausePendingIntent) // 添加播放/暂停按钮
                 .addAction(R.drawable.notification_play_next, PLAY_NEXT, nextPendingIntent) // 添加下一曲按钮
                 .setLargeIcon(bitmap) //根据不同系统魔改方式不同，效果不同。比如小米是替换背景图片，荣耀是放一张缩略图上去
-//                .setProgress(currentMusic==null?0:100, 30, false)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         return builder.build();
     }
@@ -229,16 +236,24 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onMusicDataChanged(MusicItemBean musicData) {
             currentMusic = musicData;
+            MediaMetadataCompat.Builder metaDta = new MediaMetadataCompat.Builder()
+                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, musicData.getName())
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, musicData.getSinger())
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, musicData.getAlbum())
+                    .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, musicData.getDuration());
+            mediaSession.setMetadata(metaDta.build());
             startForeground(NOTIFICATION_ID, createNotification());
         }
 
         @Override
         public void onPlayStatusChanged(Boolean isPlaying) {
             //使用的是同一个mPlaybackState对象，不需要重新setPlaybackState
+            Log.d(TAG, "onPlayStatusChanged");
             mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
+                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, MusicManager.getInstance().mediaPlayer.getCurrentPosition(), 1.0f)
                     .build();
             playBackState = isPlaying;
+            mediaSession.setPlaybackState(mPlaybackState);
             startForeground(NOTIFICATION_ID, createNotification());
         }
 
@@ -261,9 +276,6 @@ public class MusicService extends MediaBrowserServiceCompat {
             Log.v(TAG, "onPlay() -> mPlaybackState = " + mPlaybackState.getState());
             if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 MusicManager.getInstance().playOrPause();
-                mPlaybackState = new PlaybackStateCompat.Builder()
-                        .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
-                        .build();
             }
         }
 
@@ -275,9 +287,6 @@ public class MusicService extends MediaBrowserServiceCompat {
             Log.v(TAG, "onPause() -> mPlaybackState = " + mPlaybackState.getState());
             if (mPlaybackState.getState() == PlaybackStateCompat.STATE_PLAYING) {
                 MusicManager.getInstance().playOrPause();
-                mPlaybackState = new PlaybackStateCompat.Builder()
-                        .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
-                        .build();
             }
         }
 
@@ -286,9 +295,6 @@ public class MusicService extends MediaBrowserServiceCompat {
             super.onSkipToPrevious();
             Log.v(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playLast();
-            mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
-                    .build();
         }
 
         @Override
@@ -296,9 +302,6 @@ public class MusicService extends MediaBrowserServiceCompat {
             super.onSkipToNext();
             Log.v(TAG, "onSkipToNext() -> mPlaybackState = " + mPlaybackState.getState());
             MusicManager.getInstance().playNext();
-            mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f)
-                    .build();
         }
 
         @Override
@@ -309,16 +312,17 @@ public class MusicService extends MediaBrowserServiceCompat {
             Log.v(TAG, "onMediaButtonEvent() -> mPlaybackState -> keyEvent = " + keyEvent);
             if (keyEvent != null && keyEvent.getAction() == KeyEvent.ACTION_UP) {
                 switch (keyEvent.getKeyCode()) {
-                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    case KeyEvent.KEYCODE_MEDIA_PLAY:
-                        MusicManager.getInstance().playOrPause();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_NEXT:
-                        MusicManager.getInstance().playNext();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                        MusicManager.getInstance().playLast();
-                        break;
+                    //PlayBackState设置setAction后，这里就不需要重复捕获了，但是仍然会收到回调
+//                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+//                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+//                        MusicManager.getInstance().playOrPause();
+//                        break;
+//                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+//                        MusicManager.getInstance().playNext();
+//                        break;
+//                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+//                        MusicManager.getInstance().playLast();
+//                        break;
                     case KeyEvent.KEYCODE_HEADSETHOOK:
                         //线控耳机只会发出KEYCODE_HEADSETHOOK，通过计数方式控制
                         handler.removeCallbacks(doControlAction);

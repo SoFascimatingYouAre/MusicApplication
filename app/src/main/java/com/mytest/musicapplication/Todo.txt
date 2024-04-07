@@ -13,7 +13,8 @@
 9、应用发布，公开apk，招商。
 
 更新日志：
-修改更新歌曲信息的方式，用于准备在主页和通知栏显示歌曲播放进度
+新增使用MediaMetadataCompat配合为PlayBackState设置Action来显示通知栏进度条
+为PlayBackState设置Action，使其可以相应MediaSessionCompat.Callback#onPlay()等回调
 
 待办：
-调查通知无法显示进度的问题
+通知栏ProgressBar改成Seekbar
