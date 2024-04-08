@@ -90,17 +90,7 @@ public class MusicService extends MediaBrowserServiceCompat {
     }
 
     private void initMediaSession() {
-        mPlaybackState = new PlaybackStateCompat.Builder()
-                .setActions(
-                        PlaybackStateCompat.ACTION_PLAY
-                                | PlaybackStateCompat.ACTION_PAUSE
-                                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
-                                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-                                | PlaybackStateCompat.ACTION_SEEK_TO
-                )
-                .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
-                .build();
-
+        Log.d("fxz", "initMediaSession");
         //若需要处理媒体按钮事件，需要加入pendingIntent，但是有线耳机的指令也会在onMediaButtonEvent中收到，此位置不再使用
 //        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
 //        PendingIntent pendingIntent = PendingIntent.getBroadcast(
@@ -112,7 +102,7 @@ public class MusicService extends MediaBrowserServiceCompat {
 //        mediaSession = new MediaSessionCompat(this, "MusicService", null, pendingIntent);
         mediaSession = new MediaSessionCompat(this, "MusicService");
         mediaSession.setCallback(sessionCallback);
-        mediaSession.setPlaybackState(mPlaybackState);
+        setNewPlaybackState(PlaybackStateCompat.STATE_NONE, 0);
 
         //设置token后会触发MediaBrowserCompat.ConnectionCallback的回调方法
         //表示MediaBrowser与MediaBrowserService连接成功
@@ -173,6 +163,20 @@ public class MusicService extends MediaBrowserServiceCompat {
                 .setLargeIcon(bitmap) //根据不同系统魔改方式不同，效果不同。比如小米是替换背景图片，荣耀是放一张缩略图上去
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         return builder.build();
+    }
+
+    private void setNewPlaybackState(int state, long position) {
+        mPlaybackState = new PlaybackStateCompat.Builder()
+                .setActions(
+                        PlaybackStateCompat.ACTION_PLAY
+                                | PlaybackStateCompat.ACTION_PAUSE
+                                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                                | PlaybackStateCompat.ACTION_SEEK_TO
+                )
+                .setState(state, position, 1.0f)
+                .build();
+        mediaSession.setPlaybackState(mPlaybackState);
     }
 
     @Override
@@ -241,6 +245,7 @@ public class MusicService extends MediaBrowserServiceCompat {
                     .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, musicData.getSinger())
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, musicData.getAlbum())
                     .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, musicData.getDuration());
+            Log.d("fxz", "musicData.getDuration()" + musicData.getDuration());
             mediaSession.setMetadata(metaDta.build());
             startForeground(NOTIFICATION_ID, createNotification());
         }
@@ -249,11 +254,8 @@ public class MusicService extends MediaBrowserServiceCompat {
         public void onPlayStatusChanged(Boolean isPlaying) {
             //使用的是同一个mPlaybackState对象，不需要重新setPlaybackState
             Log.d(TAG, "onPlayStatusChanged");
-            mPlaybackState = new PlaybackStateCompat.Builder()
-                    .setState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, MusicManager.getInstance().mediaPlayer.getCurrentPosition(), 1.0f)
-                    .build();
+            setNewPlaybackState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, MusicManager.getInstance().mediaPlayer.getCurrentPosition());
             playBackState = isPlaying;
-            mediaSession.setPlaybackState(mPlaybackState);
             startForeground(NOTIFICATION_ID, createNotification());
         }
 
@@ -337,6 +339,10 @@ public class MusicService extends MediaBrowserServiceCompat {
         @Override
         public void onSeekTo(long pos) {
             super.onSeekTo(pos);
+            MusicManager.getInstance().seekTo((int) pos);
+            boolean isPlaying = MusicManager.getInstance().isPlaying();
+            setNewPlaybackState(isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, MusicManager.getInstance().mediaPlayer.getCurrentPosition());
+            playBackState = isPlaying;
         }
 
         /**

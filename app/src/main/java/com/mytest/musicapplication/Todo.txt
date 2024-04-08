@@ -13,8 +13,8 @@
 9、应用发布，公开apk，招商。
 
 更新日志：
-新增使用MediaMetadataCompat配合为PlayBackState设置Action来显示通知栏进度条
-为PlayBackState设置Action，使其可以相应MediaSessionCompat.Callback#onPlay()等回调
+通知栏可以显示拖动条了
+原因是重新设置PlaybackState时，都使用new的方式，用新的PlaybackState替换了首次已经配置好了ACTION_SEEK_TO的PlaybackState，而新的PlaybackState没有配置ACTION_SEEK_TO。导致只要一变更播放状态，PlaybackState相当于不再配置ACTION_SEEK_TO标志了
 
 待办：
-通知栏ProgressBar改成Seekbar
+音频焦点

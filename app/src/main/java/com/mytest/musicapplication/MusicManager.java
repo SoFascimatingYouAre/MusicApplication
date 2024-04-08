@@ -272,6 +272,15 @@ public class MusicManager {
         }
     }
 
+    public void seekTo(int msec) {
+        mediaPlayer.seekTo(msec);
+    }
+
+    public boolean isPlaying() {
+        if (mediaPlayer == null) return false;
+        return mediaPlayer.isPlaying();
+    }
+
     private void onMusicDataChanged(MusicItemBean musicData) {
         for (MusicDataListener musicDataListener : musicDataListeners) {
             musicDataListener.onMusicDataChanged(musicData);
