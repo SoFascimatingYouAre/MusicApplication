@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MusicApplication</string>
+    <string name="app_name">小镇音乐</string>
     <string name="notification_default_song_name">音乐</string>
     <string name="notification_default_singer">听我想听的歌</string>
     <string name="toast_this_is_first_song">已经是第一首了，没有上一曲辣</string>
