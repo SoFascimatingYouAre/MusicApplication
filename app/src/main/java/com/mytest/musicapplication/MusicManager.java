@@ -3,6 +3,7 @@ package com.mytest.musicapplication;
 import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -66,10 +67,7 @@ public class MusicManager {
 
     private void setMediaPlayerListener() {
         mediaPlayer.setOnPreparedListener(mp -> {
-            mediaPlayer.start();
-
-            //开始播放之后把标志位设置为播放状态
-            onPlayStatusChanged(true);
+            playMusic();
         });
         mediaPlayer.setOnCompletionListener(mp -> {
             playNext();
@@ -167,10 +165,10 @@ public class MusicManager {
         }
         if (mediaPlayer.isPlaying()) {
             //此时处于播放状态，需要暂停音乐
-            pauseMusic();
+            prePauseMusic();
         } else {
             //此时没有播放音乐，点击开始播放音乐
-            playMusic();
+            prePlayMusic();
         }
         return true;
     }
@@ -204,7 +202,7 @@ public class MusicManager {
         try {
             mediaPlayer.setDataSource(bean.getPath());
             //设置路径成功后播放新音乐
-            playMusic();
+            prePlayMusic();
         } catch (Exception e) {
             Log.e(TAG, e.toString());
         }
@@ -216,12 +214,10 @@ public class MusicManager {
      * 1，从暂停到播放
      * 2，从停止到播放
      */
-    private void playMusic() {
+    private void prePlayMusic() {
         if (!mediaPlayer.isPlaying()) {
-
             //最后一个视频中标记当前播放时长的标志位，在前面视频中先看这个判断内部的东西
             if (currentPausePositionInSong == 0) {
-
                 //从停止到播放
                 try {
                     mediaPlayer.prepare();
@@ -230,11 +226,7 @@ public class MusicManager {
                     Log.d(TAG, e.toString());
                 }
             } else {
-                //从暂停到播放
-                mediaPlayer.start();
-
-                //开始播放之后把标志位设置为播放状态
-                onPlayStatusChanged(true);
+                playMusic();
             }
         }
     }
@@ -242,18 +234,33 @@ public class MusicManager {
     /**
      * 暂停音乐
      */
-    private void pauseMusic() {
+    private void prePauseMusic() {
         if (mediaPlayer == null) {
             Log.e(TAG, "pauseMusic()-> mediaPlayer is NULL!");
             return;
         }
         if (mediaPlayer.isPlaying()) {
             currentPausePositionInSong = mediaPlayer.getCurrentPosition();
-            mediaPlayer.pause();
-
-            //设置为false是暂停状态，也就是需要显示播放按钮
-            onPlayStatusChanged(false);
+            pauseMusic();
         }
+    }
+
+    private void playMusic() {
+        if (AudioFocusManager.getInstance().requestAudioFocus(onAudioFocusChangelistener)) {
+            //从暂停到播放
+            mediaPlayer.start();
+
+            //开始播放之后把标志位设置为播放状态
+            onPlayStatusChanged(true);
+        }
+    }
+
+    private void pauseMusic() {
+        AudioFocusManager.getInstance().releaseAudioFocus();
+        mediaPlayer.pause();
+
+        //设置为false是暂停状态，也就是需要显示播放按钮
+        onPlayStatusChanged(false);
     }
 
     /**
@@ -300,6 +307,25 @@ public class MusicManager {
     public ArrayList<MusicItemBean> getPlayListData() {
         return data;
     }
+
+    private final AudioManager.OnAudioFocusChangeListener onAudioFocusChangelistener = focusChange -> {
+        Log.d(TAG, "focusChange = " + focusChange);
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                // 获得焦点时的操作
+                prePlayMusic();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+                // 失去焦点时的操作
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                // 短暂失去焦点时的操作
+                prePauseMusic();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                // 短暂失去焦点但可以低音量播放时的操作
+                break;
+        }
+    };
 
 
     public interface MusicDataListener {

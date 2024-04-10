@@ -151,8 +151,7 @@ public class MainActivity extends AppCompatActivity {
         intent = new Intent(this, MusicService.class);
         startService(intent);
         //简化View层代码，转移到ViewModel层
-        mainViewModel.createPlayerAndData(getContentResolver());
-        mainViewModel.initMediaBrowser(this);
+        mainViewModel.initData(this, getContentResolver());
     }
 
     /**

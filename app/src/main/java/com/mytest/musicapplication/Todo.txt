@@ -2,10 +2,10 @@
 1、(完成)MediaPlayer加入播放状态监听，根据不同状态给MainViewModel中的playOrPause属性更细化的设置状态，同时要将状态发给Service，用作Notification的提前准备,断开蓝牙时要停止播放。
 2、(完成)有线耳机需要实现播放/暂停/上下一曲功能。
 3、ForegroundService。用前台服务制作系统内定样式的Notification，并通过Notification实现上下一曲、暂停播放 音乐时长显示，SeekTo功能。并加入音频焦点控制(如何可以让多个设备同时播放)。
-3.5（复习）
-4、保存最后的播放信息，下次启动时自动使用。
-5、进度条功能。要在主页和通知中都加入进度条和SeekTo功能，最好再加入滑动SeekTo。
-6、(可选)UI优化
+3.5(完成)（复习）
+4、(暂时不做了)保存最后的播放信息，下次启动时自动使用。
+5、(完成)进度条功能。要在主页和通知中都加入进度条和SeekTo功能，最好再加入滑动SeekTo。
+6、(完成)(可选)UI优化
 
 最终挑战：
 7、寻找免费新源，实现网络流媒体播放(流媒体播放的学习极大可能异常艰难)。
@@ -13,8 +13,5 @@
 9、应用发布，公开apk，招商。
 
 更新日志：
-通知栏可以显示拖动条了
-原因是重新设置PlaybackState时，都使用new的方式，用新的PlaybackState替换了首次已经配置好了ACTION_SEEK_TO的PlaybackState，而新的PlaybackState没有配置ACTION_SEEK_TO。导致只要一变更播放状态，PlaybackState相当于不再配置ACTION_SEEK_TO标志了
-
-待办：
-音频焦点
+音频焦点控制加入：由于小米系统魔改，无法管理音频焦点，其他机型需要测试。
+第一阶段完成

@@ -66,10 +66,22 @@ public class MainViewModel {
     }
 
     /**
+     * 初始化需要用到的工具，音频焦点管理、播放器和媒体浏览器
+     *
+     * @param context  用于初始化音频焦点管理和媒体浏览器
+     * @param resolver 用于初始化播放器
+     */
+    public void initData(Context context, ContentResolver resolver) {
+        AudioFocusManager.getInstance().initAudioManager(context);
+        createPlayerAndData(resolver);
+        initMediaBrowser(context);
+    }
+
+    /**
      * 加载本地存储当中的音乐文件到集合当中
      */
     @SuppressLint("Range")
-    public void createPlayerAndData(ContentResolver resolver) {
+    private void createPlayerAndData(ContentResolver resolver) {
         MusicManager.getInstance().createPlayerAndData(resolver);
         MusicManager.getInstance().registerMusicDataListener(musicDataListener);
         if (listener != null) {
@@ -77,6 +89,13 @@ public class MainViewModel {
         } else {
             Log.e(TAG, "initMusicData()-> listener is NULL!");
         }
+    }
+
+    private void initMediaBrowser(Context context) {
+        mBrowser = new MediaBrowserCompat(context, new ComponentName(context, MusicService.class), mediaBrowserCallback, null);
+        //Browser发送连接请求
+        Log.d(TAG, "connect()");
+        mBrowser.connect();
     }
 
     private final MusicManager.MusicDataListener musicDataListener = new MusicManager.MusicDataListener() {
@@ -96,13 +115,6 @@ public class MainViewModel {
 
         }
     };
-
-    public void initMediaBrowser(Context context) {
-        mBrowser = new MediaBrowserCompat(context, new ComponentName(context, MusicService.class), mediaBrowserCallback, null);
-        //Browser发送连接请求
-        Log.d(TAG, "connect()");
-        mBrowser.connect();
-    }
 
     private final MediaBrowserCompat.ConnectionCallback mediaBrowserCallback = new MediaBrowserCompat.ConnectionCallback() {
         @Override
